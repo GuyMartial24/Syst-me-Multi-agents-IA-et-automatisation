@@ -1,0 +1,41 @@
+# IDs Google Drive (extraits du document Modelisation_Agents)
+google_drive:
+  dossier_linkedin_connections: "1X_IDqTFPg-Hh-jkRnyTBnDjVmaXtgF_1"
+  dossier_linkedin_messages:    "1Qd9yDA2N4kHSovlGA8aZavlAbQ3yeI2b"
+  dossier_liste_brute:          "1JCQvWRjGHH01wzgQDhVK9ho57xszIlI4"
+  dossier_liste_finale:         "1JjFDdTs2yt-fp2j795i2TUxI9fuKkGUG"
+  dossier_archives:             "1zvizg72FmeVF1nB2o5jKYPIvH9vxOblh"
+
+google_sheet:
+  id: "1yEWVIlazcfih3iymhICk3pY2jXwVAisgeZB8WVje8a0"
+
+# Définition des tâches
+tasks:
+  extraction_connections:
+    agent: extracteur_linkedin_connections
+    input_folder: dossier_linkedin_connections
+    input_file: connections.csv
+    output_tab: ListeContacts_Lin_connexions
+    champs: [nom, email]
+
+  extraction_messages:
+    agent: extracteur_linkedin_messages
+    input_folder: dossier_linkedin_messages
+    input_file: messages.csv
+    output_tab: ListeContacts_Lin_messages
+    champs: [nom, email]
+
+  extraction_outlook:
+    agent: extracteur_outlook
+    input: "Boîte Outlook pierre.bono@f-r-d.fr via Graph API"
+    output_tab: ListeContacts_Out
+    champs: [nom, prenom, email]
+    inclure_cc: true
+
+  nettoyage:
+    agent: nettoyeur
+    input_folder: dossier_liste_brute
+    filtre: "colonne 'A vérifier' == 1 → supprimer"
+    deduplication: true
+    output_folder: dossier_liste_finale
+    output_tab: ListeContacts_Lin_Out_FINAL

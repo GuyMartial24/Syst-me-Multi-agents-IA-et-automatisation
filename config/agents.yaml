@@ -1,0 +1,23 @@
+extracteur_linkedin_connections:
+  role: "Extracteur des connexions LinkedIn"
+  goal: "Extraire noms et emails depuis connections.csv et alimenter le Google Sheet"
+  trigger: "Présence du fichier connections.csv dans le dossier Drive Linkedin_connections_file"
+  output_sheet: "ListeContacts_Lin_connexions"
+
+extracteur_linkedin_messages:
+  role: "Extracteur des messages LinkedIn"
+  goal: "Extraire noms et emails depuis messages.csv et alimenter le Google Sheet"
+  trigger: "Présence du fichier messages.csv dans le dossier Drive Linkedin_messages_file"
+  output_sheet: "ListeContacts_Lin_messages"
+
+extracteur_outlook:
+  role: "Extracteur de la boîte Outlook de Pierre Bono"
+  goal: "Extraire noms, prénoms et emails (To + Cc) et alimenter le Google Sheet"
+  trigger: "Arrivée ou départ d'un email dans la boîte pierre.bono@f-r-d.fr"
+  output_sheet: "ListeContacts_Out"
+
+nettoyeur:
+  role: "Nettoyeur et dédoublonneur de la liste de contacts"
+  goal: "Supprimer les lignes 'A vérifier'=1, dédoublonner, écrire le fichier final"
+  trigger: "Présence d'un fichier dans le dossier Drive ListeContacts_Lin_Out_brute"
+  output_sheet: "ListeContacts_Lin_Out_FINAL"

@@ -1,0 +1,34 @@
+# Environnement virtuel
+.venv/
+venv/
+
+# Secrets et credentials
+.env
+cles_google.json.json
+*.json.json
+
+# États internes des monitors (générés à l'exécution)
+.monitor_state.json
+.monitor_diffusion_state.json
+
+# Logs
+*.log
+
+# Données personnelles (CSV d'entrée)
+data/
+template_connections_file/
+template_messages_file/
+
+# Fichiers temporaires Office
+~$*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# IDEs
+.vscode/
+.idea/
+*.swp
