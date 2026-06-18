@@ -12,7 +12,7 @@ def run_outlook() -> str:
     llm   = get_llm()
     agent = create_agent_extracteur_outlook(llm)
     task  = create_task_extraction_outlook(agent)
-    crew  = Crew(agents=[agent], tasks=[task], process=Process.sequential, verbose=True)
+    crew  = Crew(agents=[agent], tasks=[task], process=Process.sequential, verbose=False)
     return str(crew.kickoff())
 
 

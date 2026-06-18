@@ -37,6 +37,6 @@ def create_agent_extracteur_linkedin_messages(llm: ChatOllama) -> Agent:
         ),
         tools=[extraire_contacts_messages, ecrire_contacts_sans_doublons, archiver_fichier_drive],
         llm=llm,
-        verbose=True,
+        verbose=False,
         allow_delegation=False,
     )

@@ -22,7 +22,7 @@ def run_diffusion() -> str:
         agents=[agent],
         tasks=[task],
         process=Process.sequential,
-        verbose=True,
+        verbose=False,
     )
     result = crew.kickoff()
     return str(result)

@@ -35,6 +35,6 @@ def create_agent_extracteur_linkedin_connections(llm: ChatOllama) -> Agent:
         ),
         tools=[extraire_contacts_connections, ecrire_contacts_sans_doublons, archiver_fichier_drive],
         llm=llm,
-        verbose=True,
+        verbose=False,
         allow_delegation=False,
     )

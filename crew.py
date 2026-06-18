@@ -34,5 +34,5 @@ def build_crew() -> Crew:
         agents=[ag_conn, ag_msg, ag_outlook, ag_clean],
         tasks=[task_conn, task_msg, task_outlook, task_clean],
         process=Process.sequential,
-        verbose=True,
+        verbose=False,
     )

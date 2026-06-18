@@ -12,7 +12,7 @@ def run_connections() -> str:
     llm   = get_llm()
     agent = create_agent_extracteur_linkedin_connections(llm)
     task  = create_task_extraction_connections(agent)
-    crew  = Crew(agents=[agent], tasks=[task], process=Process.sequential, verbose=True)
+    crew  = Crew(agents=[agent], tasks=[task], process=Process.sequential, verbose=False)
     return str(crew.kickoff())
 
 

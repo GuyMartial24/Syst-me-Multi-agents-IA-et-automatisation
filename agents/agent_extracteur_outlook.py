@@ -48,6 +48,6 @@ def create_agent_extracteur_outlook(llm: ChatOllama) -> Agent:
         ),
         tools=[lire_emails_outlook, ecrire_contacts_sans_doublons],
         llm=llm,
-        verbose=True,
+        verbose=False,
         allow_delegation=False,
     )
