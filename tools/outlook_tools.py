@@ -6,6 +6,27 @@ from tools.google_drive_tools import _parse_prenom_nom, _extraire_domaine
 
 GRAPH_API_BASE = "https://graph.microsoft.com/v1.0"
 
+# Préfixes de la partie locale (avant @) correspondant à des expéditeurs automatiques :
+# no-reply, newsletters, notifications système, marketing, etc.
+_AUTO_PREFIXES = {
+    "noreply", "no-reply", "no_reply",
+    "nepasrepondre", "ne-pas-repondre", "ne_pas_repondre",
+    "donotreply", "do-not-reply", "do_not_reply",
+    "newsletter", "newsletters", "news", "mailing", "emailing",
+    "notification", "notifications", "notify",
+    "alert", "alerts", "update", "updates",
+    "mailer", "mailer-daemon", "postmaster",
+    "bounce", "bounces", "automated", "robot", "system",
+    "admin", "support", "contact",
+    "marketing",
+}
+
+
+def _est_adresse_automatique(email: str) -> bool:
+    """Retourne True si l'adresse correspond à un expéditeur automatique."""
+    local = email.split("@")[0].lower()
+    return local in _AUTO_PREFIXES
+
 
 def _get_access_token() -> str:
     tenant_id = os.environ["OUTLOOK_OAUTH_TENANT_ID"]
@@ -73,9 +94,11 @@ def lire_emails_outlook(top_par_dossier: int = 100) -> str:
             # Règles d'exclusion
             if not email or "@" not in email:
                 continue
-            if email == mailbox_lower:          # exclure Pierre Bono
+            if email == mailbox_lower:              # exclure Pierre Bono
                 continue
-            if email in contacts:               # déjà traité
+            if _est_adresse_automatique(email):     # exclure no-reply, newsletters, etc.
+                continue
+            if email in contacts:                   # déjà traité
                 continue
 
             name = adr.get("name", "").strip()
