@@ -180,10 +180,13 @@ def supprimer_lignes_a_verifier(tab_name: str) -> str:
         return "Onglet vide."
 
     headers = rows[0]
-    try:
-        col_idx = headers.index("A vérifier")
-    except ValueError:
-        return "Colonne 'A vérifier' introuvable."
+    # Recherche insensible à la casse et aux variantes (A_verifier / A vérifier)
+    col_idx = next(
+        (i for i, h in enumerate(headers) if h.replace(" ", "_").lower() == "a_verifier"),
+        None,
+    )
+    if col_idx is None:
+        return "Colonne 'A_verifier' introuvable dans l'onglet."
 
     lignes_filtrees = [headers] + [
         row for row in rows[1:]
@@ -268,10 +271,10 @@ def supprimer_emails_exclus(tab_name: str) -> str:
 
 
 @tool("Dédoublonner un onglet du Google Sheet")
-def dedoublonner_google_sheet(tab_name: str, cle_dedup: str = "email") -> str:
+def dedoublonner_google_sheet(tab_name: str, cle_dedup: str = "Email") -> str:
     """
     Supprime les doublons d'un onglet du Google Sheet en se basant
-    sur la colonne spécifiée (par défaut : 'email').
+    sur la colonne spécifiée (par défaut : 'Email'). Recherche insensible à la casse.
     """
     service = _get_sheets_service()
 
@@ -284,9 +287,11 @@ def dedoublonner_google_sheet(tab_name: str, cle_dedup: str = "email") -> str:
         return "Onglet vide."
 
     headers = rows[0]
-    try:
-        col_idx = headers.index(cle_dedup)
-    except ValueError:
+    col_idx = next(
+        (i for i, h in enumerate(headers) if h.lower() == cle_dedup.lower()),
+        None,
+    )
+    if col_idx is None:
         return f"Colonne '{cle_dedup}' introuvable."
 
     vus = set()

@@ -3,7 +3,7 @@ Surveillance continue du dossier Drive 'Diffusion_et_Communication'.
 Dès qu'un nouveau fichier Excel 'ListeContacts_Lin_Out_FINAL' y est détecté,
 lance automatiquement le crew de diffusion (crew_diffusion.py).
 
-Intervalle de polling : 10 minutes.
+Intervalle de polling : 20 minutes.
 Lancement : python monitor_diffusion.py
 Arrêt      : Ctrl+C
 """
@@ -110,13 +110,15 @@ def run_cycle() -> None:
                 from crew_diffusion import run_diffusion
                 rapport = run_diffusion()
                 log.info(f"Diffusion terminée.\n{rapport}")
-                ids_traites.add(fichier["id"])
-                sauvegarder_ids_traites(ids_traites)
             except Exception as exc:
                 log.error(
                     f"Erreur lors de la diffusion pour {fichier['name']} : {exc}",
                     exc_info=True,
                 )
+            finally:
+                # Marquer comme traité même en cas d'erreur pour éviter les boucles infinies
+                ids_traites.add(fichier["id"])
+                sauvegarder_ids_traites(ids_traites)
 
     except Exception as exc:
         log.error(f"Erreur lors du cycle de surveillance : {exc}", exc_info=True)

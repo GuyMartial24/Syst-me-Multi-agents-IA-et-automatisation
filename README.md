@@ -159,7 +159,7 @@ ollama run deepseek-r1:8b
 ### Lancer le crew principal (extraction + nettoyage)
 
 ```bash
-python crew.py
+python main.py
 ```
 
 ### Lancer le crew de diffusion manuellement

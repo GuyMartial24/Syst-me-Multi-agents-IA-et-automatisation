@@ -173,8 +173,12 @@ def _lancer_crew(nom: str, runner_fn) -> None:
 
 def check_connections(etat: dict) -> None:
     log.info("[Connections] Vérification…")
-    service = _get_drive_service()
-    fichiers = _lister_fichiers(service, FOLDER_LINKEDIN_CONNECTIONS, "connections.csv")
+    try:
+        service  = _get_drive_service()
+        fichiers = _lister_fichiers(service, FOLDER_LINKEDIN_CONNECTIONS, "connections.csv")
+    except Exception as exc:
+        log.error(f"[Connections] Erreur accès Drive : {exc}", exc_info=True)
+        return
     traites  = set(etat["fichiers_traites"]["connections"])
     nouveaux = [f for f in fichiers if f["id"] not in traites]
 
@@ -185,7 +189,7 @@ def check_connections(etat: dict) -> None:
     log.info(f"[Connections] {len(nouveaux)} fichier(s) détecté(s).")
     from crew_connections import run_connections
     _lancer_crew("Extracteur Connections", run_connections)
-
+    # Marquer traités même si le crew a échoué (évite la boucle infinie)
     for f in nouveaux:
         traites.add(f["id"])
     etat["fichiers_traites"]["connections"] = list(traites)
@@ -193,8 +197,12 @@ def check_connections(etat: dict) -> None:
 
 def check_messages(etat: dict) -> None:
     log.info("[Messages] Vérification…")
-    service  = _get_drive_service()
-    fichiers = _lister_fichiers(service, FOLDER_LINKEDIN_MESSAGES, "messages.csv")
+    try:
+        service  = _get_drive_service()
+        fichiers = _lister_fichiers(service, FOLDER_LINKEDIN_MESSAGES, "messages.csv")
+    except Exception as exc:
+        log.error(f"[Messages] Erreur accès Drive : {exc}", exc_info=True)
+        return
     traites  = set(etat["fichiers_traites"]["messages"])
     nouveaux = [f for f in fichiers if f["id"] not in traites]
 
@@ -246,8 +254,12 @@ def check_outlook(etat: dict) -> None:
 
 def check_nettoyeur(etat: dict) -> None:
     log.info("[Nettoyeur] Vérification du dossier ListeContacts_Lin_Out_brute…")
-    service  = _get_drive_service()
-    fichiers = _lister_fichiers(service, FOLDER_LISTE_BRUTE)
+    try:
+        service  = _get_drive_service()
+        fichiers = _lister_fichiers(service, FOLDER_LISTE_BRUTE)
+    except Exception as exc:
+        log.error(f"[Nettoyeur] Erreur accès Drive : {exc}", exc_info=True)
+        return
     traites  = set(etat["fichiers_traites"]["nettoyeur"])
     nouveaux = [f for f in fichiers if f["id"] not in traites]
 

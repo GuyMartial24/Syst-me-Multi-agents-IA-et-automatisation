@@ -76,18 +76,24 @@ def lire_emails_outlook(top_par_dossier: int = 100) -> str:
     Source='Outlook', A_verifier='' (vide), Domaine, Statut='' (vide), Extension.
     Seuls les contacts avec une adresse email valide sont inclus.
     """
-    mailbox = os.environ["OUTLOOK_TARGET_MAILBOX"]
-    mailbox_lower = mailbox.strip().lower()
-    token = _get_access_token()
+    try:
+        mailbox = os.environ["OUTLOOK_TARGET_MAILBOX"]
+        mailbox_lower = mailbox.strip().lower()
+        token = _get_access_token()
+    except Exception as exc:
+        return json.dumps({"erreur": f"Authentification Outlook impossible : {exc}"})
 
     # Si le monitor a défini OUTLOOK_SINCE_DT, on ne récupère que les nouveaux messages.
     # Sinon, on récupère les N derniers (mode manuel / premier lancement).
     since_dt = os.environ.get("OUTLOOK_SINCE_DT", "")
 
-    messages = (
-        _fetch_messages(token, mailbox, "inbox",     top_par_dossier, since_dt) +
-        _fetch_messages(token, mailbox, "sentitems", top_par_dossier, since_dt)
-    )
+    try:
+        messages = (
+            _fetch_messages(token, mailbox, "inbox",     top_par_dossier, since_dt) +
+            _fetch_messages(token, mailbox, "sentitems", top_par_dossier, since_dt)
+        )
+    except Exception as exc:
+        return json.dumps({"erreur": f"Erreur lecture boîte Outlook : {exc}"})
 
     contacts: dict[str, dict] = {}
 
