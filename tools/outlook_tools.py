@@ -42,12 +42,20 @@ def _get_access_token() -> str:
     return resp.json()["access_token"]
 
 
-def _fetch_messages(token: str, mailbox: str, folder: str, top: int) -> list:
-    """Récupère les messages d'un dossier Outlook (inbox ou sentitems)."""
+def _fetch_messages(token: str, mailbox: str, folder: str, top: int, since_dt: str = "") -> list:
+    """
+    Récupère les messages d'un dossier Outlook (inbox ou sentitems).
+    Si since_dt est fourni (format ISO 8601 UTC, ex. '2026-06-18T08:00:00Z'),
+    seuls les messages reçus/envoyés après cette date sont retournés.
+    """
     headers = {"Authorization": f"Bearer {token}"}
+
+    date_field = "sentDateTime" if folder == "sentitems" else "receivedDateTime"
+    filter_clause = f"&$filter={date_field} gt {since_dt}" if since_dt else ""
+
     url = (
         f"{GRAPH_API_BASE}/users/{mailbox}/mailFolders/{folder}/messages"
-        f"?$top={top}&$select=from,toRecipients,ccRecipients"
+        f"?$top={top}&$select=from,toRecipients,ccRecipients{filter_clause}"
     )
     resp = requests.get(url, headers=headers, timeout=30)
     resp.raise_for_status()
@@ -72,10 +80,13 @@ def lire_emails_outlook(top_par_dossier: int = 100) -> str:
     mailbox_lower = mailbox.strip().lower()
     token = _get_access_token()
 
-    # Récupérer les messages des deux dossiers
+    # Si le monitor a défini OUTLOOK_SINCE_DT, on ne récupère que les nouveaux messages.
+    # Sinon, on récupère les N derniers (mode manuel / premier lancement).
+    since_dt = os.environ.get("OUTLOOK_SINCE_DT", "")
+
     messages = (
-        _fetch_messages(token, mailbox, "inbox",     top_par_dossier) +
-        _fetch_messages(token, mailbox, "sentitems", top_par_dossier)
+        _fetch_messages(token, mailbox, "inbox",     top_par_dossier, since_dt) +
+        _fetch_messages(token, mailbox, "sentitems", top_par_dossier, since_dt)
     )
 
     contacts: dict[str, dict] = {}

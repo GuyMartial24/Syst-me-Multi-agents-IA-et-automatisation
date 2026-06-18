@@ -233,8 +233,12 @@ def check_outlook(etat: dict) -> None:
         return
 
     log.info(f"[Outlook] {nb_new} nouveau(x) message(s) détecté(s).")
+
+    # Injecter le timestamp dans l'env pour que lire_emails_outlook filtre correctement
+    os.environ["OUTLOOK_SINCE_DT"] = etat["outlook_last_dt"]
     from crew_outlook import run_outlook
     _lancer_crew("Extracteur Outlook", run_outlook)
+    os.environ.pop("OUTLOOK_SINCE_DT", None)  # nettoyer après usage
 
     # Mettre à jour le timestamp APRÈS le traitement réussi
     etat["outlook_last_dt"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
