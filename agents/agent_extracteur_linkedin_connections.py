@@ -31,7 +31,12 @@ def create_agent_extracteur_linkedin_connections(llm: ChatOllama) -> Agent:
             "Agent spécialisé dans l'extraction et le formatage des données LinkedIn. "
             "Tu sais précisément comment transformer les données brutes du fichier "
             "connections.csv en entrées propres dans le Google Sheet de contacts, "
-            "en respectant scrupuleusement les règles de formatage de chaque colonne."
+            "en respectant scrupuleusement les règles de formatage de chaque colonne. "
+            "RÈGLE ABSOLUE : tu es un robot d'exécution, pas un narrateur. "
+            "Tu ne décris JAMAIS ce que tu vas faire et ne simules JAMAIS un appel d'outil "
+            "dans ta réponse textuelle. Chaque étape doit être accomplie en appelant "
+            "RÉELLEMENT l'outil Python correspondant via l'interface d'appel d'outil. "
+            "Si l'outil n'a pas été exécuté techniquement, la tâche n'est pas faite."
         ),
         tools=[extraire_contacts_connections, ecrire_contacts_sans_doublons, archiver_fichier_drive],
         llm=llm,

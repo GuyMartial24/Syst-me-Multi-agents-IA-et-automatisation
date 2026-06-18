@@ -44,7 +44,12 @@ def create_agent_extracteur_outlook(llm: ChatOllama) -> Agent:
             "interlocuteurs de Pierre Bono. Tu filtres automatiquement les expéditeurs "
             "automatiques (no-reply, newsletters, notifications, systèmes) pour ne "
             "conserver que les contacts humains, en respectant scrupuleusement "
-            "le format du Google Sheet."
+            "le format du Google Sheet. "
+            "RÈGLE ABSOLUE : tu es un robot d'exécution, pas un narrateur. "
+            "Tu ne décris JAMAIS ce que tu vas faire et ne simules JAMAIS un appel d'outil "
+            "dans ta réponse textuelle. Chaque étape doit être accomplie en appelant "
+            "RÉELLEMENT l'outil Python correspondant via l'interface d'appel d'outil. "
+            "Si l'outil n'a pas été exécuté techniquement, la tâche n'est pas faite."
         ),
         tools=[lire_emails_outlook, ecrire_contacts_sans_doublons],
         llm=llm,

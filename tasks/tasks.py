@@ -32,13 +32,16 @@ def create_task_extraction_connections(agent: Agent) -> Task:
             f"avec source_folder_id='{FOLDER_LINKEDIN_CONNECTIONS}', "
             f"archives_folder_id='{FOLDER_ARCHIVES}' et filename='connections.csv'. "
             "Le fichier sera renommé avec la date du jour (ex. connections_17062026.csv) "
-            "et déplacé dans Archives. Le dossier source doit être vide après cette étape."
+            "et déplacé dans Archives. Le dossier source doit être vide après cette étape.\n"
+            "EXIGENCE CRITIQUE : chaque étape doit être réalisée en déclenchant RÉELLEMENT "
+            "l'outil Python correspondant. Ne jamais décrire ou simuler un appel d'outil — "
+            "déclencher l'outil directement et restituer sa sortie brute."
         ),
         expected_output=(
-            "Rapport en deux parties :\n"
-            "1. Extraction : nombre de contacts ajoutés / ignorés dans ListeContacts_Lin_connexions.\n"
-            "2. Archivage  : confirmation que connections.csv a été archivé "
-            "(ex. 'connections.csv → connections_17062026.csv')."
+            "Sortie brute des outils, sans prose ni commentaire :\n"
+            "1. Résultat de ecrire_contacts_sans_doublons : 'X contact(s) ajouté(s) dans "
+            "ListeContacts_Lin_connexions. Y ignoré(s) car déjà présent(s).'\n"
+            "2. Résultat de archiver_fichier_drive : 'connections.csv → connections_JJMMAAAA.csv'"
         ),
         agent=agent,
     )
@@ -65,13 +68,16 @@ def create_task_extraction_messages(agent: Agent) -> Task:
             f"avec source_folder_id='{FOLDER_LINKEDIN_MESSAGES}', "
             f"archives_folder_id='{FOLDER_ARCHIVES}' et filename='messages.csv'. "
             "Le fichier sera renommé avec la date du jour (ex. messages_17062026.csv) "
-            "et déplacé dans Archives. Le dossier source doit être vide après cette étape."
+            "et déplacé dans Archives. Le dossier source doit être vide après cette étape.\n"
+            "EXIGENCE CRITIQUE : chaque étape doit être réalisée en déclenchant RÉELLEMENT "
+            "l'outil Python correspondant. Ne jamais décrire ou simuler un appel d'outil — "
+            "déclencher l'outil directement et restituer sa sortie brute."
         ),
         expected_output=(
-            "Rapport en deux parties :\n"
-            "1. Extraction : nombre de contacts ajoutés / ignorés dans ListeContacts_Lin_messages.\n"
-            "2. Archivage  : confirmation que messages.csv a été archivé "
-            "(ex. 'messages.csv → messages_17062026.csv')."
+            "Sortie brute des outils, sans prose ni commentaire :\n"
+            "1. Résultat de ecrire_contacts_sans_doublons : 'X contact(s) ajouté(s) dans "
+            "ListeContacts_Lin_messages. Y ignoré(s) car déjà présent(s).'\n"
+            "2. Résultat de archiver_fichier_drive : 'messages.csv → messages_JJMMAAAA.csv'"
         ),
         agent=agent,
     )
@@ -95,12 +101,15 @@ def create_task_extraction_outlook(agent: Agent) -> Task:
             "  • Extension   : extension du domaine (ex. .fr)\n"
             "Utilise l'outil 'ecrire_contacts_sans_doublons' pour écrire "
             "les contacts dans l'onglet 'ListeContacts_Out'. "
-            "Si un contact existe déjà (même email), conserver la version existante."
+            "Si un contact existe déjà (même email), conserver la version existante.\n"
+            "EXIGENCE CRITIQUE : chaque étape doit être réalisée en déclenchant RÉELLEMENT "
+            "l'outil Python correspondant. Ne jamais décrire ou simuler un appel d'outil — "
+            "déclencher l'outil directement et restituer sa sortie brute."
         ),
         expected_output=(
-            "Confirmation du nombre de contacts extraits et écrits dans le Google Sheet. "
-            "Exemple : '87 contact(s) ajouté(s) dans ListeContacts_Out. "
-            "12 ignoré(s) car déjà présent(s) (version existante conservée).'"
+            "Sortie brute de l'outil ecrire_contacts_sans_doublons, sans prose ni commentaire. "
+            "Exemple exact attendu : 'X contact(s) ajouté(s) dans ListeContacts_Out. "
+            "Y ignoré(s) car déjà présent(s) (version existante conservée).'"
         ),
         agent=agent,
     )
@@ -129,15 +138,17 @@ def create_task_nettoyage(agent: Agent, context: list) -> Task:
             f"archives_folder_id='{FOLDER_ARCHIVES}' (sans préciser filename pour "
             "archiver tous les fichiers présents). "
             "Chaque fichier sera renommé avec la date du jour et déplacé dans Archives. "
-            "Le dossier ListeContacts_Lin_Out_brute doit être vide après cette étape."
+            "Le dossier ListeContacts_Lin_Out_brute doit être vide après cette étape.\n"
+            "EXIGENCE CRITIQUE : chaque étape doit être réalisée en déclenchant RÉELLEMENT "
+            "l'outil Python correspondant. Ne jamais décrire ou simuler un appel d'outil — "
+            "déclencher l'outil directement et restituer sa sortie brute."
         ),
         expected_output=(
-            "Rapport en quatre parties :\n"
-            "1. Lignes 'A vérifier'=1 supprimées.\n"
-            "2. Emails exclus supprimés (présents dans ListeExclusion).\n"
-            "3. Doublons supprimés, contacts uniques conservés dans ListeContacts_Lin_Out_FINAL.\n"
-            "4. Archivage : confirmation que le(s) fichier(s) du dossier "
-            "ListeContacts_Lin_Out_brute ont été archivés avec la date dans leur nom."
+            "Sortie brute des 4 outils exécutés, sans prose ni commentaire :\n"
+            "1. Résultat de supprimer_lignes_a_verifier.\n"
+            "2. Résultat de supprimer_emails_exclus.\n"
+            "3. Résultat de dedoublonner_google_sheet.\n"
+            "4. Résultat de archiver_fichier_drive."
         ),
         agent=agent,
         context=context,

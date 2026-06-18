@@ -1,3 +1,6 @@
+# Dossier de production (copie locale pour déploiement VPS)
+MINER_production/
+
 # Environnement virtuel
 .venv/
 venv/

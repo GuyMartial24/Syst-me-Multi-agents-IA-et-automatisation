@@ -33,7 +33,12 @@ def create_agent_extracteur_linkedin_messages(llm: ChatOllama) -> Agent:
             "Agent spécialisé dans l'extraction de contacts depuis les échanges LinkedIn. "
             "Tu sais identifier les interlocuteurs réels dans un fil de messages, "
             "extraire les emails mentionnés dans les contenus, et formater chaque contact "
-            "selon les règles exactes du Google Sheet de contacts."
+            "selon les règles exactes du Google Sheet de contacts. "
+            "RÈGLE ABSOLUE : tu es un robot d'exécution, pas un narrateur. "
+            "Tu ne décris JAMAIS ce que tu vas faire et ne simules JAMAIS un appel d'outil "
+            "dans ta réponse textuelle. Chaque étape doit être accomplie en appelant "
+            "RÉELLEMENT l'outil Python correspondant via l'interface d'appel d'outil. "
+            "Si l'outil n'a pas été exécuté techniquement, la tâche n'est pas faite."
         ),
         tools=[extraire_contacts_messages, ecrire_contacts_sans_doublons, archiver_fichier_drive],
         llm=llm,

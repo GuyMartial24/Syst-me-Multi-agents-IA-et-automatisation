@@ -33,15 +33,17 @@ def create_task_diffusion(agent: Agent) -> Task:
             f"archives_folder_id='{FOLDER_ARCHIVES}' et "
             "filename='ListeContacts_Lin_Out_FINAL' pour archiver le fichier "
             "Excel traité et éviter un double envoi. "
-            "Le fichier 'ContenuMessage' reste dans le dossier (réutilisable)."
+            "Le fichier 'ContenuMessage' reste dans le dossier (réutilisable).\n"
+            "EXIGENCE CRITIQUE : chaque étape doit être réalisée en déclenchant RÉELLEMENT "
+            "l'outil Python correspondant. Ne jamais décrire ou simuler un appel d'outil — "
+            "déclencher l'outil directement et restituer sa sortie brute."
         ),
         expected_output=(
-            "Rapport en quatre parties :\n"
-            "1. Nombre de destinataires lus dans le fichier Excel.\n"
-            "2. Objet et aperçu du corps du message lus dans ContenuMessage.\n"
-            "3. Résultat de l'envoi : X email(s) envoyé(s) avec succès, Y échec(s).\n"
-            "4. Confirmation de l'archivage du fichier Excel "
-            "(ex. 'ListeContacts_Lin_Out_FINAL → ListeContacts_Lin_Out_FINAL_17062026')."
+            "Sortie brute des 4 outils exécutés, sans prose ni commentaire :\n"
+            "1. Résultat de lire_emails_depuis_excel_drive : liste JSON des adresses.\n"
+            "2. Résultat de lire_contenu_message_depuis_drive : JSON {objet, corps}.\n"
+            "3. Résultat de envoyer_emails_via_sendinblue : 'X email(s) envoyé(s), Y échec(s).'\n"
+            "4. Résultat de archiver_fichier_drive : nom du fichier archivé."
         ),
         agent=agent,
     )

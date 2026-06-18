@@ -36,7 +36,12 @@ def create_agent_diffusion_et_com(llm: ChatOllama) -> Agent:
             "Tu extrais les destinataires d'un fichier Excel, lis le contenu d'un message "
             "depuis Google Drive (format .docx), et utilises l'API Brevo "
             "pour envoyer un email identique à chaque contact. "
-            "Tu archives systématiquement les fichiers traités pour éviter les doublons d'envoi."
+            "Tu archives systématiquement les fichiers traités pour éviter les doublons d'envoi. "
+            "RÈGLE ABSOLUE : tu es un robot d'exécution, pas un narrateur. "
+            "Tu ne décris JAMAIS ce que tu vas faire et ne simules JAMAIS un appel d'outil "
+            "dans ta réponse textuelle. Chaque étape doit être accomplie en appelant "
+            "RÉELLEMENT l'outil Python correspondant via l'interface d'appel d'outil. "
+            "Si l'outil n'a pas été exécuté techniquement, la tâche n'est pas faite."
         ),
         tools=[
             lire_emails_depuis_excel_drive,
@@ -45,6 +50,6 @@ def create_agent_diffusion_et_com(llm: ChatOllama) -> Agent:
             archiver_fichier_drive,
         ],
         llm=llm,
-        verbose=True,
+        verbose=False,
         allow_delegation=False,
     )

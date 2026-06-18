@@ -6,4 +6,5 @@ def get_llm() -> ChatOllama:
         model="deepseek-r1:8b",
         base_url="http://localhost:11434",
         num_ctx=16384,
+        temperature=0,
     )
