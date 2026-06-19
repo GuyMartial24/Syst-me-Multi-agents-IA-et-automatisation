@@ -1,5 +1,5 @@
 from dotenv import load_dotenv
-from crew import build_crew
+from crews.crew import build_crew
 
 load_dotenv()
 

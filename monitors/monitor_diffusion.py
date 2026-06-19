@@ -24,7 +24,7 @@ load_dotenv()
 
 FOLDER_DIFFUSION = "1peQ9728pAY2h2j60i-Wns4-bXyjZzVzl"
 POLLING_INTERVAL = 1200  # 20 minutes
-STATE_FILE = Path(__file__).parent / ".monitor_diffusion_state.json"
+STATE_FILE = Path(__file__).parent.parent / ".monitor_diffusion_state.json"
 
 SCOPES = ["https://www.googleapis.com/auth/drive"]
 
@@ -107,7 +107,7 @@ def run_cycle() -> None:
                 "Lancement du crew de diffusion…"
             )
             try:
-                from crew_diffusion import run_diffusion
+                from crews.crew_diffusion import run_diffusion
                 rapport = run_diffusion()
                 log.info(f"Diffusion terminée.\n{rapport}")
             except Exception as exc:

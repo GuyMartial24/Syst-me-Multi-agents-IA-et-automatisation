@@ -47,7 +47,7 @@ INTERVALS = {
     "nettoyeur":   15 * 60,   # 15 min
 }
 
-STATE_FILE = Path(__file__).parent / ".monitor_main_state.json"
+STATE_FILE = Path(__file__).parent.parent / ".monitor_main_state.json"
 SCOPES_DRIVE = ["https://www.googleapis.com/auth/drive"]
 
 # ── Logging ───────────────────────────────────────────────────────────────────
@@ -204,7 +204,7 @@ def check_connections(etat: dict) -> None:
         return
 
     log.info(f"[Connections] {len(nouveaux)} fichier(s) détecté(s).")
-    from crew_connections import run_connections
+    from crews.crew_connections import run_connections
     _lancer_crew("Extracteur Connections", run_connections)
     # Marquer traités même si le crew a échoué (évite la boucle infinie)
     for f in nouveaux:
@@ -228,7 +228,7 @@ def check_messages(etat: dict) -> None:
         return
 
     log.info(f"[Messages] {len(nouveaux)} fichier(s) détecté(s).")
-    from crew_messages import run_messages
+    from crews.crew_messages import run_messages
     _lancer_crew("Extracteur Messages", run_messages)
 
     for f in nouveaux:
@@ -261,7 +261,7 @@ def check_outlook(etat: dict) -> None:
 
     # Injecter le timestamp dans l'env pour que lire_emails_outlook filtre correctement
     os.environ["OUTLOOK_SINCE_DT"] = etat["outlook_last_dt"]
-    from crew_outlook import run_outlook
+    from crews.crew_outlook import run_outlook
     _lancer_crew("Extracteur Outlook", run_outlook)
     os.environ.pop("OUTLOOK_SINCE_DT", None)  # nettoyer après usage
 
@@ -292,7 +292,7 @@ def check_nettoyeur(etat: dict) -> None:
 
     noms = ", ".join(f["name"] for f in nouveaux)
     log.info(f"[Nettoyeur] Fichier(s) détecté(s) : {noms}.")
-    from crew_nettoyeur import run_nettoyeur
+    from crews.crew_nettoyeur import run_nettoyeur
     _lancer_crew("Nettoyeur", run_nettoyeur)
 
     for f in nouveaux:

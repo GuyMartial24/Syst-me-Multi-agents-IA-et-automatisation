@@ -32,7 +32,7 @@ TAB_FINALE = "ListeContacts_Lin_Out"
 COLONNE_EMAIL = "Email"
 
 POLLING_INTERVAL = 600  # secondes (10 minutes)
-STATE_FILE = Path(__file__).parent / ".monitor_state.json"
+STATE_FILE = Path(__file__).parent.parent / ".monitor_state.json"
 
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
