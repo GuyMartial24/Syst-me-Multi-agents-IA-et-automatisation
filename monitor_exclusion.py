@@ -1,11 +1,11 @@
 """
-Surveillance continue de ListeExclusion → nettoyage de ListeContacts_Lin_Out_FINAL.
+Surveillance continue de ListeExclusion → nettoyage de ListeContacts_Lin_Out.
 
 Fonctionnement :
   - Toutes les 10 minutes, lit la colonne "Email exclu" du Google Sheet ListeExclusion.
   - Compare avec l'état précédent (persisté dans .monitor_state.json).
   - Si de nouvelles adresses sont détectées, les supprime immédiatement de
-    ListeContacts_Lin_Out_FINAL dans le Google Sheet principal.
+    l'onglet ListeContacts_Lin_Out dans le Google Sheet principal.
   - Journalise chaque action dans monitor_exclusion.log.
 
 Lancement : python monitor_exclusion.py
@@ -27,12 +27,12 @@ load_dotenv()
 # ── Constantes ────────────────────────────────────────────────────────────────
 
 SHEET_ID_EXCLUSION = "1sz7xUM05y6xI-bj1Wz8jvmOzuIH7ZzCoEyECgqkZ9xc"
-SHEET_ID_FINALE    = "1yEWVIlazcfih3iymhICk3pY2jXwVAisgeZB8WVje8a0"
-TAB_FINALE         = "ListeContacts_Lin_Out_FINAL"
-COLONNE_EMAIL      = "Email"
+SHEET_ID_FINALE = "1yEWVIlazcfih3iymhICk3pY2jXwVAisgeZB8WVje8a0"
+TAB_FINALE = "ListeContacts_Lin_Out"
+COLONNE_EMAIL = "Email"
 
-POLLING_INTERVAL   = 600  # secondes (10 minutes)
-STATE_FILE         = Path(__file__).parent / ".monitor_state.json"
+POLLING_INTERVAL = 600  # secondes (10 minutes)
+STATE_FILE = Path(__file__).parent / ".monitor_state.json"
 
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
@@ -138,8 +138,8 @@ def run_cycle() -> None:
         service = _get_service()
 
         emails_actuels = lire_emails_exclusion(service)
-        emails_connus  = charger_etat()
-        nouveaux       = emails_actuels - emails_connus
+        emails_connus = charger_etat()
+        nouveaux = emails_actuels - emails_connus
 
         if not nouveaux:
             log.info(
@@ -173,7 +173,7 @@ def run_cycle() -> None:
 if __name__ == "__main__":
     log.info("=" * 60)
     log.info("Démarrage du moniteur ListeExclusion (intervalle : 10 min)")
-    log.info(f"Surveillance de : {TAB_FINALE}")
+    log.info(f"Suppression des exclusions dans l'onglet : {TAB_FINALE}")
     log.info("=" * 60)
 
     # Premier cycle immédiat au démarrage

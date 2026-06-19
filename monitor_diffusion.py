@@ -24,7 +24,7 @@ load_dotenv()
 
 FOLDER_DIFFUSION = "1peQ9728pAY2h2j60i-Wns4-bXyjZzVzl"
 POLLING_INTERVAL = 1200  # 20 minutes
-STATE_FILE       = Path(__file__).parent / ".monitor_diffusion_state.json"
+STATE_FILE = Path(__file__).parent / ".monitor_diffusion_state.json"
 
 SCOPES = ["https://www.googleapis.com/auth/drive"]
 
@@ -88,9 +88,9 @@ def sauvegarder_ids_traites(ids: set[str]) -> None:
 
 def run_cycle() -> None:
     try:
-        service       = _get_drive_service()
-        fichiers      = lister_fichiers_liste_finale(service)
-        ids_traites   = charger_ids_traites()
+        service = _get_drive_service()
+        fichiers = lister_fichiers_liste_finale(service)
+        ids_traites = charger_ids_traites()
 
         nouveaux = [f for f in fichiers if f["id"] not in ids_traites]
 

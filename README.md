@@ -1,44 +1,104 @@
-# MINER — Système Multi-Agents IA d'Automatisation de Contacts
+# MINER — Système Multi-Agents IA de Prospection et Diffusion
 
-Système de 5 agents IA autonomes construits avec **CrewAI**, capables d'extraire, nettoyer et diffuser une liste de contacts professionnels à partir de LinkedIn, Outlook et Google Sheets, via une orchestration entièrement automatisée.
+> **Auteur** : Martial GADJEU | Data Engineer & AI
+
+Système de **5 agents IA autonomes** construits avec **CrewAI** et un **LLM 100 % local (Ollama)**, capable d'extraire, consolider, nettoyer et diffuser une liste de contacts professionnels à partir de LinkedIn, Outlook et Google Sheets — **sans aucun coût de token, sans aucune donnée envoyée vers un service cloud d'IA**.
+
+---
+
+## Le défi : intelligence artificielle, prospection et confidentialité des données
+
+La plupart des systèmes multi-agents actuels reposent sur des LLM hébergés dans le cloud (OpenAI, Claude, Gemini…). Pour des usages professionnels impliquant des **données de contact personnelles** (noms, adresses email, historique de messages), cette dépendance crée deux problèmes majeurs :
+
+- **Confidentialité** : chaque appel API envoie vos données vers des serveurs tiers hors de votre contrôle.
+- **Coût** : des milliers de contacts traités quotidiennement génèrent une facture de tokens significative.
+
+**MINER répond à ces deux enjeux simultanément** : le moteur d'IA (Ollama + llama3.1) tourne entièrement sur la machine hôte. Aucune donnée de contact ne quitte votre infrastructure. Le coût marginal de traitement est **zéro**.
 
 ---
 
 ## Architecture
 
 ```
-LinkedIn connections.csv ──► Agent 1 (Extracteur Connections) ──►
-LinkedIn messages.csv    ──► Agent 2 (Extracteur Messages)    ──► Google Sheet
-Boîte Outlook            ──► Agent 3 (Extracteur Outlook)     ──►      │
-                                                                         ▼
-                                                               Agent 4 (Nettoyeur)
+LinkedIn connections.csv ──► Agent 1 — Extracteur Connections ──►
+LinkedIn messages.csv    ──► Agent 2 — Extracteur Messages    ──► Google Sheet
+Boîte Outlook            ──► Agent 3 — Extracteur Outlook     ──► ListeContacts_Lin_Out
+                                                                         │
+                                                              [Export Excel manuel]
                                                                          │
                                                                          ▼
-                                                          Agent 5 (Diffusion & Com)
+                                                               Agent 4 — Nettoyeur
+                                                            (A verifier + Exclusions + Dédup)
+                                                                         │
+                                                                         ▼
+                                                     Onglet ListeContacts_Lin_Out_FINAL
+                                                                         │
+                                                          [Export Excel → Drive manuel]
+                                                                         │
+                                                                         ▼
+                                                          Agent 5 — Diffusion & Com
+                                                     (Newsletters, campagnes, communications)
                                                                          │
                                                                          ▼
                                                                Envoi via Brevo API
 ```
 
-### Les 5 agents
+---
 
-| Agent | Source | Onglet Google Sheet | Archivage |
-|---|---|---|---|
-| Extracteur Connections | `connections.csv` (Google Drive) | `ListeContacts_Lin_connexions` | Oui |
-| Extracteur Messages | `messages.csv` (Google Drive) | `ListeContacts_Lin_messages` | Oui |
-| Extracteur Outlook | Boîte Outlook via Microsoft Graph API | `ListeContacts_Out` | — |
-| Nettoyeur | Google Sheet principal | `ListeContacts_Lin_Out_FINAL` | Oui |
-| Diffusion & Com | Fichier Excel Drive + ContenuMessage.docx | — (envoi email) | Oui |
+## Les 5 agents
+
+| # | Agent | Source / Déclencheur | Destination | Polling |
+|---|---|---|---|---|
+| 1 | **Extracteur Connections** | `connections.csv` dans Google Drive | Onglet `ListeContacts_Lin_Out` | 6 min |
+| 2 | **Extracteur Messages** | `messages.csv` dans Google Drive | Onglet `ListeContacts_Lin_Out` | 8 min |
+| 3 | **Extracteur Outlook** | Boîte Outlook (inbox + sentItems + Cc) | Onglet `ListeContacts_Lin_Out` | 5 min |
+| 4 | **Nettoyeur** | Fichier Excel dans Drive `ListeContacts_Lin_Out_brute` | Onglet `ListeContacts_Lin_Out_FINAL` | 15 min |
+| 5 | **Diffusion & Com** | Fichier Excel dans Drive `Diffusion_et_Communication` | Envoi email Brevo | 20 min |
+
+### Agent 5 — Diffusion & Com en détail
+
+L'Agent 5 est le bras armé de la communication sortante. À partir de la liste de prospects nettoyée, il est capable de diffuser :
+
+- **Newsletters** — actualités, veille sectorielle, publications
+- **Campagnes de prospection** — premiers contacts, relances
+- **Communications internes ou partenariales** — invitations, annonces, rapports
+
+Le message est rédigé dans un fichier `ContenuMessage.docx` (format `Objet: ...` + corps libre). L'agent lit le fichier, extrait l'objet et le corps, puis envoie un email individualisé à chaque destinataire via **Brevo** (ex-Sendinblue). Le fichier Excel des destinataires est archivé après envoi pour éviter les doublons.
+
+---
+
+## Pourquoi des agents en Python pur ?
+
+Chaque agent est implémenté en **Python pur avec CrewAI**, sans framework d'abstraction supplémentaire. Ce choix offre :
+
+- **Granularité totale** : chaque étape (extraction, déduplication, nettoyage, archivage) est une fonction Python testable et modifiable indépendamment.
+- **Contrôle du flux de données** : aucune donnée ne transite par un intermédiaire opaque. Le code est lisible, auditable, déployable sur n'importe quelle infrastructure.
+- **Extensibilité** : ajouter une nouvelle source de contacts (Salesforce, formulaire web, API tiers) = créer un outil Python + un crew. Aucune migration de plateforme nécessaire.
+- **Stabilité** : les agents ne dépendent d'aucun service externe pour leur raisonnement. Ollama en local = pas de rate limit, pas de coupure API, pas de coût variable.
 
 ---
 
 ## Stack technique
 
-- **[CrewAI](https://github.com/crewAIInc/crewAI)** — orchestration multi-agents
-- **[Ollama](https://ollama.com)** + `deepseek-r1:8b` — LLM local (aucun envoi de données vers le cloud)
-- **Google Drive API** + **Google Sheets API v4** — stockage et lecture des données
-- **Microsoft Graph API** — accès à la boîte Outlook (client credentials flow)
-- **Brevo (ex-Sendinblue)** — diffusion email transactionnelle
+| Composant | Technologie | Rôle |
+|---|---|---|
+| Orchestration agents | **CrewAI** | Coordination séquentielle, gestion des outils |
+| LLM local | **Ollama + llama3.1** | Raisonnement des agents — 100 % local, coût zéro |
+| Contacts LinkedIn | **Google Drive API v3** | Lecture des CSV exportés |
+| Contacts Outlook | **Microsoft Graph API** | Lecture inbox + sentItems + Cc |
+| Base de contacts | **Google Sheets API v4** | Stockage centralisé, déduplication |
+| Diffusion email | **Brevo API** | Envoi transactionnel en masse |
+| Déclenchement | **Polling Python** | Surveillance périodique sans webhooks |
+
+---
+
+## Sécurité et confidentialité
+
+- **LLM 100 % local** : llama3.1 via Ollama tourne sur la machine hôte. Aucun nom, email ou contenu de message n'est envoyé vers OpenAI, Anthropic ou tout autre service cloud d'IA.
+- **Coût zéro** : pas de facturation à l'usage, pas de quota, pas de clé API LLM. Seule la puissance de calcul locale est consommée.
+- **Secrets isolés** : `.env` et `cles_google.json.json` sont dans `.gitignore` et ne sont jamais commités.
+- **Principe de moindre privilège** : le compte de service Google n'a accès qu'aux dossiers Drive et Sheets explicitement partagés avec lui.
+- **Données personnelles** : les contacts ne transitent que vers Google Drive/Sheets, Microsoft Graph et Brevo — jamais vers un tiers non maîtrisé.
 
 ---
 
@@ -46,63 +106,62 @@ Boîte Outlook            ──► Agent 3 (Extracteur Outlook)     ──►  
 
 ```
 Projet_MINER_agents_IA/
-├── agents/
+│
+├── agents/                        # Définitions des 5 agents CrewAI
 │   ├── agent_extracteur_linkedin_connections.py
 │   ├── agent_extracteur_linkedin_messages.py
 │   ├── agent_extracteur_outlook.py
 │   ├── agent_nettoyeur.py
 │   └── agent_diffusion_et_com.py
-├── tools/
-│   ├── google_drive_tools.py      # Lecture CSV, archivage Drive
-│   ├── google_sheets_tools.py     # Lecture/écriture/dédup Google Sheets
-│   ├── outlook_tools.py           # Lecture boîte Outlook via Graph API
-│   └── diffusion_tools.py        # Lecture ContenuMessage, envoi Brevo
-├── tasks/
-│   ├── tasks.py                   # Tâches agents 1→4
+│
+├── tools/                         # Outils utilisés par les agents (1 outil = 1 opération atomique)
+│   ├── pipeline_tools.py          # Outils monolithiques — 1 appel LLM = pipeline complet
+│   ├── google_drive_tools.py      # Lecture CSV/Excel, archivage Drive, extraction contacts
+│   ├── google_sheets_tools.py     # Lecture/écriture/déduplication Google Sheets
+│   ├── nettoyeur_tools.py         # Nettoyage en mémoire, écriture onglet FINAL
+│   ├── outlook_tools.py           # Lecture boîte Outlook via Microsoft Graph API
+│   └── diffusion_tools.py         # Lecture ContenuMessage.docx, envoi Brevo
+│
+├── tasks/                         # Définitions des tâches CrewAI
+│   ├── tasks.py                   # Tâches agents 1 à 4
 │   └── task_diffusion.py          # Tâche agent 5
-├── crew.py                        # Crew principal (agents 1→4)
-├── crew_diffusion.py              # Crew diffusion (agent 5)
-├── monitor_exclusion.py           # Surveillance ListeExclusion (polling 10 min)
-├── monitor_diffusion.py           # Surveillance dossier Diffusion (polling 20 min)
-├── llm.py                         # Configuration LLM partagée (Ollama)
-├── main.py                        # Point d'entrée principal
-├── requirements.txt
-└── .env.example                   # Variables d'environnement requises
+│
+├── systemd/                       # Services systemd pour déploiement VPS Ubuntu
+│   ├── miner-main.service
+│   ├── miner-diffusion.service
+│   └── miner-exclusion.service
+│
+├── docs/                          # Documentation complète
+│   ├── logique_projet.md          # Architecture, flux de données, guide développeur
+│   └── DEPLOIEMENT_VPS.md         # Guide de déploiement sur VPS Linux
+│
+├── crew_connections.py            # Crew agent 1
+├── crew_messages.py               # Crew agent 2
+├── crew_outlook.py                # Crew agent 3
+├── crew_nettoyeur.py              # Crew agent 4
+├── crew_diffusion.py              # Crew agent 5
+├── crew.py                        # Crew complet agents 1→4 (lancement séquentiel)
+│
+├── monitor_main.py                # Moniteur agents 1→4 (polling 6/8/5/15 min)
+├── monitor_diffusion.py           # Moniteur agent 5 (polling 20 min)
+├── monitor_exclusion.py           # Moniteur ListeExclusion (polling 10 min)
+│
+├── llm.py                         # Configuration LLM centralisée (Ollama)
+├── main.py                        # Lancement manuel agents 1→4 en séquence
+├── deploy.sh                      # Script de déploiement automatisé VPS
+├── test_pipeline.py               # Diagnostic — teste chaque composant sans LLM
+├── requirements.txt               # Dépendances Python
+└── .env.example                   # Modèle de variables d'environnement
 ```
-
----
-
-## Règles métier
-
-### Google Sheet principal (`ListeContacts_Lin_Out_FINAL`)
-- Colonnes fixes (A→I) : `Email`, `Prenom`, `Nom`, `Source`, `A_verifier`, `Domaine`, `Statut`, `Extension`, `Date_insertion`
-- **Email obligatoire** — toute ligne sans email est rejetée
-- **Déduplication** sur la colonne `Email` (insensible à la casse) — la version existante est conservée
-- **Date d'insertion** au format `jj/mm/aaaa`, ajoutée automatiquement à l'écriture
-- **Archivage** : après chaque opération, le fichier source est renommé `nom_jjmmaaaa.ext` et déplacé dans le dossier `Archives`
-
-### Agent Nettoyeur
-Trois passes successives sur `ListeContacts_Lin_Out_FINAL` :
-1. Suppression des lignes `A_verifier = 1`
-2. Suppression des emails présents dans **ListeExclusion** (Google Sheet séparé, colonne `Emails exclus`)
-3. Déduplication sur `Email`
-
-### Monitor ListeExclusion (`monitor_exclusion.py`)
-Surveillance continue (toutes les **10 minutes**) — dès qu'une nouvelle adresse est ajoutée à ListeExclusion, elle est immédiatement supprimée de `ListeContacts_Lin_Out_FINAL`.
-
-### Agent Diffusion & Com
-- Détecté via `monitor_diffusion.py` (polling **20 minutes**) sur le dossier Drive `Diffusion_et_Communication`
-- Lit `ContenuMessage.docx` : ligne `Objet: ...` → sujet de l'email, reste → corps
-- Envoie un email identique à tous les contacts via l'API Brevo
-- Archive le fichier Excel après envoi pour éviter les doublons
 
 ---
 
 ## Installation
 
 ### Prérequis
+
 - Python 3.11+
-- [Ollama](https://ollama.com) installé et modèle `deepseek-r1:8b` téléchargé
+- [Ollama](https://ollama.com) installé avec le modèle `llama3.1` téléchargé
 - Compte de service Google avec accès Drive et Sheets
 - Application Azure AD avec accès Microsoft Graph (pour Outlook)
 - Compte Brevo avec clé API
@@ -113,28 +172,27 @@ Surveillance continue (toutes les **10 minutes**) — dès qu'une nouvelle adres
 git clone https://github.com/GuyMartial24/Syst-me-Multi-agents-IA-et-automatisation.git
 cd Syst-me-Multi-agents-IA-et-automatisation
 python -m venv .venv
-.venv\Scripts\activate      # Windows
+source .venv/bin/activate        # Linux/Mac
+.venv\Scripts\activate           # Windows
 pip install -r requirements.txt
 ```
 
-### 2. Configurer les variables d'environnement
+### 2. Configurer l'environnement
 
 ```bash
 cp .env.example .env
 ```
 
-Renseigner dans `.env` :
-
 ```env
-# LLM local
+# LLM local (Ollama)
 OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=deepseek-r1:8b
+OLLAMA_MODEL=llama3.1
 OLLAMA_NUM_CTX=16384
 
-# Google (fichier de clés du compte de service)
+# Google Cloud (compte de service)
 GOOGLE_SERVICE_ACCOUNT_FILE=cles_google.json.json
 
-# Microsoft Graph (Outlook)
+# Microsoft Graph API (boîte Outlook)
 OUTLOOK_OAUTH_CLIENT_ID=...
 OUTLOOK_OAUTH_TENANT_ID=...
 OUTLOOK_OAUTH_CLIENT_SECRET=...
@@ -149,33 +207,36 @@ SENDINBLUE_SENDER_NAME=...
 ### 3. Lancer Ollama
 
 ```bash
-ollama run deepseek-r1:8b
+ollama pull llama3.1
+ollama serve    # ou via service système
 ```
 
 ---
 
 ## Utilisation
 
-### Lancer le crew principal (extraction + nettoyage)
+### Mode autonome (production)
 
 ```bash
-python main.py
+python monitor_main.py       # Agents 1 à 4 — polling automatique
+python monitor_diffusion.py  # Agent 5 — polling automatique
+python monitor_exclusion.py  # Exclusions en temps réel
 ```
 
-### Lancer le crew de diffusion manuellement
+### Lancement manuel
 
 ```bash
-python crew_diffusion.py
+python crew_connections.py   # Agent 1 — connections.csv
+python crew_messages.py      # Agent 2 — messages.csv
+python crew_outlook.py       # Agent 3 — Outlook
+python crew_nettoyeur.py     # Agent 4 — nettoyage
+python crew_diffusion.py     # Agent 5 — envoi email
 ```
 
-### Lancer les monitors en arrière-plan
+### Diagnostic sans LLM
 
 ```bash
-# Surveillance ListeExclusion (10 min)
-python monitor_exclusion.py
-
-# Surveillance dossier Diffusion (20 min)
-python monitor_diffusion.py
+python test_pipeline.py      # Teste Sheets, Drive, Outlook, extraction CSV
 ```
 
 ---
@@ -185,17 +246,19 @@ python monitor_diffusion.py
 ```
 Objet: Votre sujet d'email ici
 
-Corps du message ici...
+Corps du message...
 Ligne 2...
-Ligne 3...
 ```
 
-La ligne commençant par `Objet:` est extraite comme sujet de l'email. Le reste constitue le corps.
+La ligne `Objet:` devient le sujet. Le reste constitue le corps envoyé à tous les destinataires.
 
 ---
 
-## Sécurité
+## Documentation
 
-- Le fichier `cles_google.json.json` (credentials Google) ne doit **jamais** être commité — il est dans `.gitignore`
-- Le fichier `.env` contient les secrets — il est dans `.gitignore`
-- Le LLM tourne **en local** via Ollama : aucune donnée de contact n'est envoyée vers un service cloud d'IA
+- [Architecture et logique du projet](docs/logique_projet.md)
+- [Guide de déploiement VPS](docs/DEPLOIEMENT_VPS.md)
+
+---
+
+*Martial GADJEU | Data Engineer & AI*

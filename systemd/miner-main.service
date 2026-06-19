@@ -1,0 +1,18 @@
+[Unit]
+Description=MINER — Moniteur principal (agents 1 à 4 : LinkedIn + Outlook + Nettoyeur)
+After=network-online.target ollama.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/Projets_en_Production/MINER
+EnvironmentFile=/home/ubuntu/Projets_en_Production/MINER/.env
+ExecStart=/home/ubuntu/Projets_en_Production/MINER/.venv/bin/python monitor_main.py
+Restart=on-failure
+RestartSec=30
+StandardOutput=append:/var/log/miner/monitor_main.log
+StandardError=append:/var/log/miner/monitor_main.log
+
+[Install]
+WantedBy=multi-user.target

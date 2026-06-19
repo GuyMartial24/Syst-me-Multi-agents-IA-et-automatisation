@@ -1,58 +1,30 @@
-from crewai import Agent
-from langchain_ollama import ChatOllama
-from tools.outlook_tools import lire_emails_outlook
-from tools.google_sheets_tools import ecrire_contacts_sans_doublons
+from crewai import Agent, LLM
+from tools.pipeline_tools import traiter_emails_outlook
 
 
-def create_agent_extracteur_outlook(llm: ChatOllama) -> Agent:
+def create_agent_extracteur_outlook(llm: LLM) -> Agent:
     """
     Agent 3 — Extracteur_Outlook
     Déclenché par l'arrivée ou le départ d'un email dans la boîte de Pierre Bono.
-    Lit les dossiers Inbox et SentItems via Microsoft Graph API.
-    Extrait tous les contacts réels (From, To, Cc), en excluant Pierre Bono,
-    les adresses no-reply, newsletters et notifications automatiques.
-    Écrit dans le Google Sheet avec les colonnes exactes.
+    Dispose d'un seul outil qui lit les emails Outlook et écrit les contacts
+    dans le Google Sheet en une seule opération atomique.
     """
     return Agent(
         role="Extracteur de la boîte Outlook de Pierre Bono",
         goal=(
-            "Lire les emails entrants (Inbox) et sortants (SentItems) de la boîte "
-            "Outlook de Pierre Bono via l'API Microsoft Graph, et écrire chaque "
-            "contact réel identifié dans le Google Sheet avec les colonnes suivantes :\n"
-            "- Email : adresse email en minuscules\n"
-            "- Prenom : première lettre en majuscule\n"
-            "- Nom : entièrement en MAJUSCULES\n"
-            "- Source : toujours 'Outlook'\n"
-            "- A vérifier : laisser VIDE (ne pas remplir)\n"
-            "- Domaine : domaine de l'email (ex. f-r-d.fr)\n"
-            "- Statut : laisser VIDE (ne pas remplir)\n"
-            "- Extension : extension du domaine (ex. .fr)\n"
-            "Règles d'exclusion appliquées automatiquement par le tool :\n"
-            "- Pierre Bono (pierre.bono@f-r-d.fr) — propriétaire de la boîte\n"
-            "- Adresses no-reply / do-not-reply / nepasrepondre\n"
-            "- Adresses de newsletters et mailings automatiques\n"
-            "- Adresses de notifications système (notification, alert, update, etc.)\n"
-            "- Adresses génériques : noreply, admin, support, contact, marketing, "
-            "robot, postmaster, mailer-daemon, bounce\n"
-            "Seuls les contacts humains réels sont conservés.\n"
-            "Avant d'écrire, vérifier les doublons : conserver la version déjà présente."
+            "Appeler l'outil 'traiter_emails_outlook' sans paramètre. "
+            "L'outil lit les emails Outlook (Inbox + SentItems), extrait les contacts "
+            "réels et les écrit dans le Google Sheet en une seule opération. "
+            "Restituer sa sortie brute sans aucun ajout de texte."
         ),
         backstory=(
-            "Agent spécialisé dans l'extraction de contacts humains depuis une boîte "
-            "email professionnelle. Tu maîtrises l'API Microsoft Graph et sais naviguer "
-            "dans les dossiers Inbox et SentItems pour identifier tous les vrais "
-            "interlocuteurs de Pierre Bono. Tu filtres automatiquement les expéditeurs "
-            "automatiques (no-reply, newsletters, notifications, systèmes) pour ne "
-            "conserver que les contacts humains, en respectant scrupuleusement "
-            "le format du Google Sheet. "
-            "RÈGLE ABSOLUE : tu es un robot d'exécution, pas un narrateur. "
-            "Tu ne décris JAMAIS ce que tu vas faire et ne simules JAMAIS un appel d'outil "
-            "dans ta réponse textuelle. Chaque étape doit être accomplie en appelant "
-            "RÉELLEMENT l'outil Python correspondant via l'interface d'appel d'outil. "
-            "Si l'outil n'a pas été exécuté techniquement, la tâche n'est pas faite."
+            "Agent spécialisé dans l'extraction de contacts depuis la boîte Outlook. "
+            "Tu disposes d'un seul outil qui gère les deux étapes en une opération. "
+            "RÈGLE ABSOLUE : appelle l'outil immédiatement sans narration préalable. "
+            "Ne décris jamais ce que tu vas faire — déclenche l'outil directement."
         ),
-        tools=[lire_emails_outlook, ecrire_contacts_sans_doublons],
+        tools=[traiter_emails_outlook],
         llm=llm,
-        verbose=False,
+        verbose=True,  # Activé pour tracer le raisonnement de l'agent pas à pas
         allow_delegation=False,
     )

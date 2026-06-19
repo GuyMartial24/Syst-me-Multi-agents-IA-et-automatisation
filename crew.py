@@ -18,17 +18,16 @@ def build_crew() -> Crew:
     # LLM local partagé par tous les agents (deepseek-r1:8b via Ollama)
     llm = get_llm()
 
-    # Agents
-    ag_conn    = create_agent_extracteur_linkedin_connections(llm)
-    ag_msg     = create_agent_extracteur_linkedin_messages(llm)
+    ag_conn = create_agent_extracteur_linkedin_connections(llm)
+    ag_msg = create_agent_extracteur_linkedin_messages(llm)
     ag_outlook = create_agent_extracteur_outlook(llm)
-    ag_clean   = create_agent_nettoyeur(llm)
+    ag_clean = create_agent_nettoyeur(llm)
 
-    # Tâches séquentielles : 1 → 2 → 3 → 4 (nettoyage)
-    task_conn    = create_task_extraction_connections(ag_conn)
-    task_msg     = create_task_extraction_messages(ag_msg)
+    task_conn = create_task_extraction_connections(ag_conn)
+    task_msg = create_task_extraction_messages(ag_msg)
     task_outlook = create_task_extraction_outlook(ag_outlook)
-    task_clean   = create_task_nettoyage(ag_clean, context=[task_conn, task_msg, task_outlook])
+    # Le nettoyeur attend la fin des 3 extractions avant de démarrer (context = dépendances)
+    task_clean = create_task_nettoyage(ag_clean, context=[task_conn, task_msg, task_outlook])
 
     return Crew(
         agents=[ag_conn, ag_msg, ag_outlook, ag_clean],

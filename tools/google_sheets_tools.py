@@ -75,14 +75,10 @@ def ecrire_dans_google_sheet(tab_name: str, rows_json: str) -> str:
     return f"{len(rows)} lignes écrites dans l'onglet '{tab_name}'."
 
 
-@tool("Écrire des contacts dans le Google Sheet en évitant les doublons")
-def ecrire_contacts_sans_doublons(tab_name: str, rows_json: str) -> str:
+def _ecrire_contacts_sans_doublons(tab_name: str, rows_json: str) -> str:
     """
-    Insère une liste de contacts (JSON array) dans un onglet du Google Sheet
-    en vérifiant les doublons sur la colonne 'Email' (insensible à la casse).
-    - Si un email existe déjà dans l'onglet, la ligne est ignorée (version existante conservée).
-    - Seuls les nouveaux contacts sont ajoutés à la fin de l'onglet.
-    - Retourne un rapport : nombre ajoutés / ignorés.
+    Logique interne : insère des contacts dans le Google Sheet sans doublons sur Email.
+    Appelé par le @tool homonyme et par les outils pipeline de pipeline_tools.
     """
     service = _get_sheets_service()
     tous = json.loads(rows_json)
@@ -96,10 +92,15 @@ def ecrire_contacts_sans_doublons(tab_name: str, rows_json: str) -> str:
         return f"0 contact inséré. {nb_sans_email} rejeté(s) : colonne Email vide (obligatoire)."
 
     # Lire les données existantes dans l'onglet
-    result = service.spreadsheets().values().get(
-        spreadsheetId=SHEET_ID,
-        range=tab_name,
-    ).execute()
+    # Note : le nom d'onglet est entre guillemets simples pour éviter l'erreur
+    # "Unable to parse range" quand le nom contient des underscores.
+    try:
+        result = service.spreadsheets().values().get(
+            spreadsheetId=SHEET_ID,
+            range=f"'{tab_name}'",
+        ).execute()
+    except Exception as exc:
+        return f"Erreur lecture Sheet (onglet '{tab_name}') : {exc}"
     existing_rows = result.get("values", [])
 
     # Construire l'ensemble des emails déjà présents dans l'onglet
@@ -115,7 +116,6 @@ def ecrire_contacts_sans_doublons(tab_name: str, rows_json: str) -> str:
             pass  # Colonne Email absente → on insère tout
 
     # Filtrer : ne garder que les contacts dont l'email n'est pas déjà présent
-    headers = list(nouveaux[0].keys())
     a_inserer = []
     nb_ignores = 0
     for contact in nouveaux:
@@ -128,30 +128,35 @@ def ecrire_contacts_sans_doublons(tab_name: str, rows_json: str) -> str:
 
     nb_ajoutes = len(a_inserer)
 
-    # Ajouter le timestamp d'insertion à chaque nouveau contact (format jj/mm/aa)
+    # Ajouter le timestamp d'insertion à chaque nouveau contact (format jj/mm/aaaa)
     date_insertion = datetime.now().strftime("%d/%m/%Y")
     for contact in a_inserer:
         contact["Date_insertion"] = date_insertion
 
-    if not existing_rows:
-        # Onglet vide : écrire l'en-tête + les données depuis A1
-        values = [COLONNES_SHEET] + [[str(c.get(h, "")) for h in COLONNES_SHEET] for c in a_inserer]
-        service.spreadsheets().values().update(
-            spreadsheetId=SHEET_ID,
-            range=f"{tab_name}!A1",
-            valueInputOption="RAW",
-            body={"values": values},
-        ).execute()
-    elif a_inserer:
-        # Onglet existant : ajouter uniquement les nouvelles lignes à la fin
-        values = [[str(c.get(h, "")) for h in COLONNES_SHEET] for c in a_inserer]
-        service.spreadsheets().values().append(
-            spreadsheetId=SHEET_ID,
-            range=f"{tab_name}!A1",
-            valueInputOption="RAW",
-            insertDataOption="INSERT_ROWS",
-            body={"values": values},
-        ).execute()
+    try:
+        if not existing_rows:
+            # Onglet vide : écrire l'en-tête + les données depuis A1
+            values = [COLONNES_SHEET] + [
+                [str(c.get(h, "")) for h in COLONNES_SHEET] for c in a_inserer
+            ]
+            service.spreadsheets().values().update(
+                spreadsheetId=SHEET_ID,
+                range=f"'{tab_name}'!A1",
+                valueInputOption="RAW",
+                body={"values": values},
+            ).execute()
+        elif a_inserer:
+            # Onglet existant : ajouter uniquement les nouvelles lignes à la fin
+            values = [[str(c.get(h, "")) for h in COLONNES_SHEET] for c in a_inserer]
+            service.spreadsheets().values().append(
+                spreadsheetId=SHEET_ID,
+                range=f"'{tab_name}'!A1",
+                valueInputOption="RAW",
+                insertDataOption="INSERT_ROWS",
+                body={"values": values},
+            ).execute()
+    except Exception as exc:
+        return f"Erreur écriture Sheet (onglet '{tab_name}') : {exc}"
 
     rapport = (
         f"{nb_ajoutes} contact(s) ajouté(s) dans '{tab_name}'. "
@@ -162,13 +167,24 @@ def ecrire_contacts_sans_doublons(tab_name: str, rows_json: str) -> str:
     return rapport
 
 
+@tool("Écrire des contacts dans le Google Sheet en évitant les doublons")
+def ecrire_contacts_sans_doublons(tab_name: str, rows_json: str) -> str:
+    """
+    Insère une liste de contacts (JSON array) dans un onglet du Google Sheet
+    en vérifiant les doublons sur la colonne 'Email' (insensible à la casse).
+    - Si un email existe déjà dans l'onglet, la ligne est ignorée (version existante conservée).
+    - Seuls les nouveaux contacts sont ajoutés à la fin de l'onglet.
+    - Retourne un rapport : nombre ajoutés / ignorés.
+    """
+    return _ecrire_contacts_sans_doublons(tab_name, rows_json)
+
+
 @tool("Supprimer les lignes 'A vérifier' = 1 du Google Sheet")
 def supprimer_lignes_a_verifier(tab_name: str) -> str:
     """
     Supprime toutes les lignes dont la colonne 'A vérifier' vaut 1
     dans l'onglet spécifié du Google Sheet.
     """
-    import json
     service = _get_sheets_service()
 
     result = service.spreadsheets().values().get(

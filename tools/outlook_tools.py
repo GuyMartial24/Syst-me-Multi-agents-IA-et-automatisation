@@ -32,10 +32,10 @@ def _get_access_token() -> str:
     tenant_id = os.environ["OUTLOOK_OAUTH_TENANT_ID"]
     url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
     payload = {
-        "client_id":     os.environ["OUTLOOK_OAUTH_CLIENT_ID"],
+        "client_id": os.environ["OUTLOOK_OAUTH_CLIENT_ID"],
         "client_secret": os.environ["OUTLOOK_OAUTH_CLIENT_SECRET"],
-        "scope":         "https://graph.microsoft.com/.default",
-        "grant_type":    "client_credentials",
+        "scope": "https://graph.microsoft.com/.default",
+        "grant_type": "client_credentials",
     }
     resp = requests.post(url, data=payload, timeout=30)
     resp.raise_for_status()
@@ -89,7 +89,7 @@ def lire_emails_outlook(top_par_dossier: int = 100) -> str:
 
     try:
         messages = (
-            _fetch_messages(token, mailbox, "inbox",     top_par_dossier, since_dt) +
+            _fetch_messages(token, mailbox, "inbox", top_par_dossier, since_dt) +
             _fetch_messages(token, mailbox, "sentitems", top_par_dossier, since_dt)
         )
     except Exception as exc:
@@ -103,7 +103,7 @@ def lire_emails_outlook(top_par_dossier: int = 100) -> str:
         if msg.get("from", {}).get("emailAddress"):
             adresses.append(msg["from"]["emailAddress"])
         adresses += [r["emailAddress"] for r in msg.get("toRecipients", [])]
-        adresses += [r["emailAddress"] for r in msg.get("ccRecipients",  [])]
+        adresses += [r["emailAddress"] for r in msg.get("ccRecipients", [])]
 
         for adr in adresses:
             email = adr.get("address", "").strip().lower()
@@ -123,14 +123,14 @@ def lire_emails_outlook(top_par_dossier: int = 100) -> str:
             domaine, extension = _extraire_domaine(email)
 
             contacts[email] = {
-                "Email":      email,
-                "Prenom":     prenom,
-                "Nom":        nom,
-                "Source":     "Outlook",
+                "Email": email,
+                "Prenom": prenom,
+                "Nom": nom,
+                "Source": "Outlook",
                 "A_verifier": "",
-                "Domaine":    domaine,
-                "Statut":     "",
-                "Extension":  extension,
+                "Domaine": domaine,
+                "Statut": "",
+                "Extension": extension,
             }
 
     return json.dumps(list(contacts.values()), ensure_ascii=False, indent=2)

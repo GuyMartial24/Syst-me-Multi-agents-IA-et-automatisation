@@ -1,45 +1,30 @@
-from crewai import Agent
-from langchain_ollama import ChatOllama
-from tools.google_drive_tools import extraire_contacts_connections, archiver_fichier_drive
-from tools.google_sheets_tools import ecrire_contacts_sans_doublons
+from crewai import Agent, LLM
+from tools.pipeline_tools import traiter_fichier_connections
 
 
-def create_agent_extracteur_linkedin_connections(llm: ChatOllama) -> Agent:
+def create_agent_extracteur_linkedin_connections(llm: LLM) -> Agent:
     """
     Agent 1 — Extracteur_Linkedin_connections
-    Déclenché par la présence du fichier connections.csv dans le dossier Drive
-    'Linkedin_connections_file'. Formate et écrit les contacts dans le Google Sheet
-    avec les colonnes exactes : Email, Prenom, Nom, Source, Domaine, Extension.
-    Les colonnes 'A vérifier' et 'Statut' sont laissées vides.
+    Déclenché par la présence de connections.csv dans le dossier Drive
+    'Linkedin_connections_file'. Dispose d'un seul outil qui gère en une passe
+    l'extraction, l'écriture dans le Google Sheet et l'archivage du fichier.
     """
     return Agent(
         role="Extracteur des connexions LinkedIn",
         goal=(
-            "Lire le fichier connections.csv depuis Google Drive et écrire chaque contact "
-            "dans le Google Sheet avec les colonnes suivantes :\n"
-            "- Email : adresse email en minuscules\n"
-            "- Prenom : première lettre en majuscule\n"
-            "- Nom : entièrement en MAJUSCULES\n"
-            "- Source : toujours 'Linkedin'\n"
-            "- A vérifier : laisser VIDE (ne pas remplir)\n"
-            "- Domaine : domaine de l'email (ex. gmail.com)\n"
-            "- Statut : laisser VIDE (ne pas remplir)\n"
-            "- Extension : extension du domaine (ex. .com)\n"
-            "Seuls les contacts ayant une adresse email valide sont inclus."
+            "Appeler l'outil 'traiter_fichier_connections' avec le folder_id fourni. "
+            "L'outil extrait les contacts de connections.csv, les écrit dans le "
+            "Google Sheet et archive le fichier en une seule opération atomique. "
+            "Restituer sa sortie brute sans aucun ajout de texte."
         ),
         backstory=(
-            "Agent spécialisé dans l'extraction et le formatage des données LinkedIn. "
-            "Tu sais précisément comment transformer les données brutes du fichier "
-            "connections.csv en entrées propres dans le Google Sheet de contacts, "
-            "en respectant scrupuleusement les règles de formatage de chaque colonne. "
-            "RÈGLE ABSOLUE : tu es un robot d'exécution, pas un narrateur. "
-            "Tu ne décris JAMAIS ce que tu vas faire et ne simules JAMAIS un appel d'outil "
-            "dans ta réponse textuelle. Chaque étape doit être accomplie en appelant "
-            "RÉELLEMENT l'outil Python correspondant via l'interface d'appel d'outil. "
-            "Si l'outil n'a pas été exécuté techniquement, la tâche n'est pas faite."
+            "Agent spécialisé dans le traitement du fichier connections.csv LinkedIn. "
+            "Tu disposes d'un seul outil qui gère les trois étapes en une opération. "
+            "RÈGLE ABSOLUE : appelle l'outil immédiatement sans narration préalable. "
+            "Ne décris jamais ce que tu vas faire — déclenche l'outil directement."
         ),
-        tools=[extraire_contacts_connections, ecrire_contacts_sans_doublons, archiver_fichier_drive],
+        tools=[traiter_fichier_connections],
         llm=llm,
-        verbose=False,
+        verbose=True,  # Activé pour tracer le raisonnement de l'agent pas à pas
         allow_delegation=False,
     )

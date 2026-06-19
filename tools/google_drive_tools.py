@@ -51,10 +51,26 @@ def lire_csv_depuis_drive(folder_id: str, filename: str) -> str:
     return content
 
 
-_EMAIL_RE = re.compile(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}')
+_EMAIL_RE = re.compile(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?!\w)')
+
+# TLDs reconnus pour valider les emails extraits du contenu des messages LinkedIn.
+# Limite les faux positifs issus du texte collé au TLD (ex: "@ifsttar.frbien").
+_TLDS_VALIDES = {
+    "fr", "com", "net", "org", "edu", "gov", "int", "mil", "eu",
+    "de", "uk", "es", "it", "be", "nl", "ch", "at", "pl", "pt",
+    "us", "ca", "au", "nz", "jp", "cn", "in", "br", "ar", "ru", "za",
+    "io", "co", "me", "tv", "ac", "am", "re", "nc", "gp", "mq",
+    "info", "biz", "pro", "name", "mobi", "coop", "aero",
+}
+
+
+def _email_tld_valide(email: str) -> bool:
+    """Retourne True si le TLD de l'email est dans la liste blanche."""
+    tld = email.rsplit(".", 1)[-1].lower()
+    return tld in _TLDS_VALIDES
 
 # URL LinkedIn du propriétaire du compte — exclu des contacts extraits
-_OWNER_URL  = "https://www.linkedin.com/in/pierre-bono-11a47328"
+_OWNER_URL = "https://www.linkedin.com/in/pierre-bono-11a47328"
 _SKIP_NAMES = {"LinkedIn Member", ""}
 
 
@@ -95,14 +111,10 @@ def _extraire_domaine(email: str) -> tuple[str, str]:
         return "", ""
 
 
-@tool("Extraire et formater les contacts depuis connections.csv LinkedIn")
-def extraire_contacts_connections(folder_id: str) -> str:
+def _extraire_contacts_connections(folder_id: str) -> str:
     """
-    Lit le fichier connections.csv depuis un dossier Google Drive et retourne
-    une liste JSON de contacts formatés pour le Google Sheet, avec les colonnes :
-    Email, Prenom (1ère lettre majuscule), Nom (MAJUSCULES), Source='Linkedin',
-    A_verifier='' (vide), Domaine, Statut='' (vide), Extension.
-    Seules les lignes avec une adresse email valide sont incluses.
+    Logique interne : lit connections.csv depuis Drive, retourne une liste JSON de contacts.
+    Appelé par le @tool homonyme et par traiter_fichier_connections dans pipeline_tools.
     """
     service = _get_drive_service()
 
@@ -112,7 +124,9 @@ def extraire_contacts_connections(folder_id: str) -> str:
     ).execute()
     files = results.get("files", [])
     if not files:
-        return json.dumps({"erreur": f"connections.csv introuvable dans le dossier {folder_id}."})
+        return json.dumps(
+            {"erreur": f"connections.csv introuvable dans le dossier {folder_id}."}
+        )
 
     file_id = files[0]["id"]
     request = service.files().get_media(fileId=file_id)
@@ -133,7 +147,9 @@ def extraire_contacts_connections(folder_id: str) -> str:
         None,
     )
     if header_index is None:
-        return json.dumps({"erreur": "En-tête 'First Name' introuvable dans connections.csv."})
+        return json.dumps(
+            {"erreur": "En-tête 'First Name' introuvable dans connections.csv."}
+        )
 
     contacts = []
     reader = csv.DictReader(lines[header_index:])
@@ -143,38 +159,39 @@ def extraire_contacts_connections(folder_id: str) -> str:
             continue
 
         prenom_raw = row.get("First Name", "").strip()
-        nom_raw    = row.get("Last Name",  "").strip()
+        nom_raw = row.get("Last Name", "").strip()
         domaine, extension = _extraire_domaine(email)
 
         contacts.append({
-            "Email":      email.lower(),
-            "Prenom":     prenom_raw.capitalize(),
-            "Nom":        nom_raw.upper(),
-            "Source":     "Linkedin",
+            "Email": email.lower(),
+            "Prenom": prenom_raw.capitalize(),
+            "Nom": nom_raw.upper(),
+            "Source": "Linkedin",
             "A_verifier": "",
-            "Domaine":    domaine,
-            "Statut":     "",
-            "Extension":  extension,
+            "Domaine": domaine,
+            "Statut": "",
+            "Extension": extension,
         })
 
     return json.dumps(contacts, ensure_ascii=False, indent=2)
 
 
-@tool("Extraire et formater les contacts depuis messages.csv LinkedIn")
-def extraire_contacts_messages(folder_id: str) -> str:
+@tool("Extraire et formater les contacts depuis connections.csv LinkedIn")
+def extraire_contacts_connections(folder_id: str) -> str:
     """
-    Lit le fichier messages.csv depuis un dossier Google Drive et retourne
+    Lit le fichier connections.csv depuis un dossier Google Drive et retourne
     une liste JSON de contacts formatés pour le Google Sheet, avec les colonnes :
     Email, Prenom (1ère lettre majuscule), Nom (MAJUSCULES), Source='Linkedin',
     A_verifier='' (vide), Domaine, Statut='' (vide), Extension.
+    Seules les lignes avec une adresse email valide sont incluses.
+    """
+    return _extraire_contacts_connections(folder_id)
 
-    Règles d'extraction :
-    - Parcourt les colonnes FROM et TO de chaque ligne.
-    - Exclut le propriétaire du compte (Pierre BONO) et 'LinkedIn Member'.
-    - Déduplique par URL de profil LinkedIn (clé fiable).
-    - Cherche les emails dans CONTENT : si la personne est l'expéditeur (FROM)
-      d'un message contenant un email, cet email lui est associé.
-    - Les colonnes 'A vérifier' et 'Statut' sont laissées vides.
+
+def _extraire_contacts_messages(folder_id: str) -> str:
+    """
+    Logique interne : lit messages.csv depuis Drive, retourne une liste JSON de contacts.
+    Appelé par le @tool homonyme et par traiter_fichier_messages dans pipeline_tools.
     """
     service = _get_drive_service()
 
@@ -184,7 +201,9 @@ def extraire_contacts_messages(folder_id: str) -> str:
     ).execute()
     files = results.get("files", [])
     if not files:
-        return json.dumps({"erreur": f"messages.csv introuvable dans le dossier {folder_id}."})
+        return json.dumps(
+            {"erreur": f"messages.csv introuvable dans le dossier {folder_id}."}
+        )
 
     file_id = files[0]["id"]
     request = service.files().get_media(fileId=file_id)
@@ -205,7 +224,9 @@ def extraire_contacts_messages(folder_id: str) -> str:
         None,
     )
     if header_index is None:
-        return json.dumps({"erreur": "En-tête 'CONVERSATION ID' introuvable dans messages.csv."})
+        return json.dumps(
+            {"erreur": "En-tête 'CONVERSATION ID' introuvable dans messages.csv."}
+        )
 
     # contacts_map : linkedin_url → {"name": str, "email": str}
     contacts_map: dict[str, dict] = {}
@@ -213,12 +234,12 @@ def extraire_contacts_messages(folder_id: str) -> str:
     reader = csv.DictReader(lines[header_index:])
     for row in reader:
         from_name = row.get("FROM", "").strip()
-        from_url  = row.get("SENDER PROFILE URL", "").strip()
-        to_name   = row.get("TO", "").strip()
-        to_url    = row.get("RECIPIENT PROFILE URLS", "").strip().split(",")[0].strip()
-        content   = row.get("CONTENT", "")
+        from_url = row.get("SENDER PROFILE URL", "").strip()
+        to_name = row.get("TO", "").strip()
+        to_url = row.get("RECIPIENT PROFILE URLS", "").strip().split(",")[0].strip()
+        content = row.get("CONTENT", "")
 
-        emails_in_content = _EMAIL_RE.findall(content)
+        emails_in_content = [e for e in _EMAIL_RE.findall(content) if _email_tld_valide(e)]
 
         # Contact FROM
         if from_name not in _SKIP_NAMES and from_url and from_url != _OWNER_URL:
@@ -245,29 +266,44 @@ def extraire_contacts_messages(folder_id: str) -> str:
         domaine, extension = _extraire_domaine(email)
 
         contacts.append({
-            "Email":      email,
-            "Prenom":     prenom,
-            "Nom":        nom,
-            "Source":     "Linkedin",
+            "Email": email,
+            "Prenom": prenom,
+            "Nom": nom,
+            "Source": "Linkedin",
             "A_verifier": "",
-            "Domaine":    domaine,
-            "Statut":     "",
-            "Extension":  extension,
+            "Domaine": domaine,
+            "Statut": "",
+            "Extension": extension,
         })
 
     return json.dumps(contacts, ensure_ascii=False, indent=2)
 
 
-@tool("Archiver un fichier Google Drive avec la date dans le nom")
-def archiver_fichier_drive(source_folder_id: str, archives_folder_id: str, filename: str = "") -> str:
+@tool("Extraire et formater les contacts depuis messages.csv LinkedIn")
+def extraire_contacts_messages(folder_id: str) -> str:
     """
-    Trouve un ou plusieurs fichiers dans un dossier Google Drive source,
-    les renomme avec la date du jour (format : nom_jjmmaaaa.ext),
-    les déplace dans le dossier Archives et vide ainsi le dossier source.
+    Lit le fichier messages.csv depuis un dossier Google Drive et retourne
+    une liste JSON de contacts formatés pour le Google Sheet, avec les colonnes :
+    Email, Prenom (1ère lettre majuscule), Nom (MAJUSCULES), Source='Linkedin',
+    A_verifier='' (vide), Domaine, Statut='' (vide), Extension.
 
-    - Si filename est fourni : archive uniquement ce fichier.
-    - Si filename est vide   : archive tous les fichiers du dossier source.
-    - Format du nouveau nom  : ex. connections_17062026.csv
+    Règles d'extraction :
+    - Parcourt les colonnes FROM et TO de chaque ligne.
+    - Exclut le propriétaire du compte (Pierre BONO) et 'LinkedIn Member'.
+    - Déduplique par URL de profil LinkedIn (clé fiable).
+    - Cherche les emails dans CONTENT : si la personne est l'expéditeur (FROM)
+      d'un message contenant un email, cet email lui est associé.
+    - Les colonnes 'A vérifier' et 'Statut' sont laissées vides.
+    """
+    return _extraire_contacts_messages(folder_id)
+
+
+def _archiver_fichier(
+    source_folder_id: str, archives_folder_id: str, filename: str = ""
+) -> str:
+    """
+    Logique interne : archive un ou plusieurs fichiers Drive avec la date dans le nom.
+    Appelé par le @tool homonyme et par les outils pipeline de pipeline_tools.
     """
     service = _get_drive_service()
     date_str = datetime.now().strftime("%d%m%Y")
@@ -308,6 +344,22 @@ def archiver_fichier_drive(source_folder_id: str, archives_folder_id: str, filen
         f"{len(archives)} fichier(s) archivé(s) dans le dossier Archives : "
         + ", ".join(archives) + "."
     )
+
+
+@tool("Archiver un fichier Google Drive avec la date dans le nom")
+def archiver_fichier_drive(
+    source_folder_id: str, archives_folder_id: str, filename: str = ""
+) -> str:
+    """
+    Trouve un ou plusieurs fichiers dans un dossier Google Drive source,
+    les renomme avec la date du jour (format : nom_jjmmaaaa.ext),
+    les déplace dans le dossier Archives et vide ainsi le dossier source.
+
+    - Si filename est fourni : archive uniquement ce fichier.
+    - Si filename est vide   : archive tous les fichiers du dossier source.
+    - Format du nouveau nom  : ex. connections_17062026.csv
+    """
+    return _archiver_fichier(source_folder_id, archives_folder_id, filename)
 
 
 @tool("Vérifier la présence d'un fichier dans un dossier Drive")

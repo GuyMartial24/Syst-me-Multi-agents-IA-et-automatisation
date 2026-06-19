@@ -16,13 +16,14 @@ load_dotenv()
 def run_diffusion() -> str:
     llm = get_llm()
     agent = create_agent_diffusion_et_com(llm)
-    task  = create_task_diffusion(agent)
+    task = create_task_diffusion(agent)
 
     crew = Crew(
         agents=[agent],
         tasks=[task],
         process=Process.sequential,
-        verbose=False,
+        verbose=True,
+        use_native_tools=True,
     )
     result = crew.kickoff()
     return str(result)

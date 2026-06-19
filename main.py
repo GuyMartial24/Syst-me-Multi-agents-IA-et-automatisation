@@ -1,4 +1,3 @@
-import os
 from dotenv import load_dotenv
 from crew import build_crew
 

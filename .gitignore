@@ -1,5 +1,6 @@
 # Dossier de production (copie locale pour déploiement VPS)
 MINER_production/
+MINER_production.zip
 
 # Environnement virtuel
 .venv/
@@ -13,6 +14,7 @@ cles_google.json.json
 # États internes des monitors (générés à l'exécution)
 .monitor_state.json
 .monitor_diffusion_state.json
+.monitor_main_state.json
 
 # Logs
 *.log

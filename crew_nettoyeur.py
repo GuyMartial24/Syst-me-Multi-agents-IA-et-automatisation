@@ -9,10 +9,17 @@ load_dotenv()
 
 
 def run_nettoyeur() -> str:
-    llm   = get_llm()
+    llm = get_llm()
     agent = create_agent_nettoyeur(llm)
-    task  = create_task_nettoyage(agent, context=[])
-    crew  = Crew(agents=[agent], tasks=[task], process=Process.sequential, verbose=False)
+    # context=[] : déclenché seul par le monitor, sans attendre d'autres tâches
+    task = create_task_nettoyage(agent, context=[])
+    crew = Crew(
+        agents=[agent],
+        tasks=[task],
+        process=Process.sequential,
+        verbose=True,
+        use_native_tools=True,
+    )
     return str(crew.kickoff())
 
 

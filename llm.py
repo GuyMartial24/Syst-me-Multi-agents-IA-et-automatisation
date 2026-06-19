@@ -1,10 +1,10 @@
-from langchain_ollama import ChatOllama
+from crewai import LLM
 
 
-def get_llm() -> ChatOllama:
-    return ChatOllama(
-        model="deepseek-r1:8b",
+def get_llm():
+    return LLM(
+        model="ollama/llama3.1",
         base_url="http://localhost:11434",
-        num_ctx=16384,
         temperature=0,
+        timeout=120
     )

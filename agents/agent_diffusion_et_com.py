@@ -22,11 +22,11 @@ def create_agent_diffusion_et_com(llm: ChatOllama) -> Agent:
         goal=(
             "Lire la liste des contacts (fichier Excel 'ListeContacts_Lin_Out_FINAL') "
             "depuis le dossier Google Drive 'Diffusion_et_Communication', "
-            "et le contenu du message (fichier 'ContenuMessage.docx', ID fixe Drive), "
+            "et le contenu du message (fichier 'ContenuMessage' recherché par nom dans ce dossier), "
             "puis envoyer un email identique à chaque adresse email de la liste "
             "via l'API Sendinblue (Brevo). "
             "L'objet du message est extrait directement du fichier ContenuMessage "
-            "(ligne commençant par 'Objet:'). "
+            "(ligne commençant par 'Objet :'). "
             "Les paramètres d'expéditeur sont configurés dans les variables "
             "d'environnement (SENDINBLUE_SENDER_EMAIL, SENDINBLUE_SENDER_NAME). "
             "Après envoi, archiver le fichier Excel dans le dossier Archives."

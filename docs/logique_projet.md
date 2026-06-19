@@ -42,7 +42,7 @@ Le moteur d'intelligence artificielle est **local** (Ollama sur la machine hôte
 | Composant | Technologie | Rôle |
 |---|---|---|
 | Orchestration des agents | **CrewAI** | Coordination séquentielle des tâches |
-| Modèle de langage | **Ollama — deepseek-r1:8b** | LLM local, raisonnement des agents |
+| Modèle de langage | **Ollama — llama3.1** | LLM local, raisonnement des agents |
 | Contacts LinkedIn | **Google Drive API v3** | Lecture des CSV exportés depuis LinkedIn |
 | Contacts Outlook | **Microsoft Graph API** | Lecture des emails entrants et sortants |
 | Stockage des contacts | **Google Sheets API v4** | Base de données centrale des contacts |
@@ -53,13 +53,25 @@ Le moteur d'intelligence artificielle est **local** (Ollama sur la machine hôte
 
 ```
 LinkedIn connections.csv ──────┐
-LinkedIn messages.csv  ─────── ├──► Google Sheet (ListeContacts_*) ──► Nettoyage ──► ListeContacts_Lin_Out_FINAL
-Outlook (inbox + sentItems) ───┘                                                              │
-                                                                                              ▼
-ListeExclusion (Google Sheet) ──────────────────────────────────────────────────► Suppression en temps réel
-                                                                                              │
-                                                                                              ▼
-                                                                    Dossier Drive Diffusion ──► Envoi email (Brevo)
+LinkedIn messages.csv  ─────── ├──► Google Sheet "ListeContacts_Lin_Out" (onglet brut)
+Outlook (inbox + sentItems) ───┘                │
+                                                │  [Export manuel Excel par l'utilisateur]
+                                                ▼
+                              ListeContacts_Lin_Out_brute/ (Drive)
+                                                │
+                                                ▼  Agent 4 — Nettoyeur
+                              ListeExclusion ──► Nettoyage en mémoire (3 passes)
+                                                │
+                                                ▼
+                          Onglet "ListeContacts_Lin_Out_FINAL" dans le même Google Sheet
+                                                │
+                              [Export Excel manuel + dépôt dans Diffusion_et_Communication]
+                                                │
+                                                ▼
+                              Diffusion_et_Communication/ (Drive)
+                                                │
+                                                ▼  Agent 5 — Diffusion
+                                          Envoi email (Brevo)
 ```
 
 ### Processus de déclenchement automatique
@@ -101,7 +113,7 @@ Tous les dossiers suivants sont dans le Google Drive du compte de service. Le co
 
 **Dossier : `ListeFinale`**
 - ID Drive : `1JjFDdTs2yt-fp2j795i2TUxI9fuKkGUG`
-- Rôle : référence uniquement (non surveillé directement)
+- Rôle : réservé à un usage futur ou à des exports manuels ; non utilisé par l'Agent 4 en production (l'Agent 4 écrit dans l'onglet Google Sheet `ListeContacts_Lin_Out_FINAL`)
 
 ### Dossier de diffusion
 
@@ -140,12 +152,22 @@ Objet: [Titre de votre email]
 
 ## 4. Feuilles Google Sheets
 
-### Google Sheet principal — ListeContacts
+### Convention de nommage
+
+**Le nom du fichier Google Sheet est identique au nom de son onglet brut.**
+Ex. : le fichier `ListeContacts_Lin_Out` contient l'onglet `ListeContacts_Lin_Out` (brut) et l'onglet `ListeContacts_Lin_Out_FINAL` (contacts nettoyés).
+
+> **Important** : les comptes de service Google n'ont pas de quota de stockage Drive et ne peuvent pas créer de fichiers binaires dans My Drive. L'Agent 4 écrit donc dans un **onglet Google Sheet dédié** plutôt que dans un fichier Excel Drive.
+
+> **Nommage des onglets dans l'API** : les noms d'onglets contenant des underscores doivent être entourés de guillemets simples dans les appels API Sheets (`'ListeContacts_Lin_Out'`). Un espace superflu en fin de nom provoque l'erreur HTTP 400 "Unable to parse range".
+
+### Google Sheet principal — ListeContacts_Lin_Out
 
 - **ID** : `1yEWVIlazcfih3iymhICk3pY2jXwVAisgeZB8WVje8a0`
-- Contient plusieurs onglets selon la source des contacts
+- **Onglet brut** : `ListeContacts_Lin_Out` — alimenté par les agents 1, 2 et 3 ; accumulation en continu
+- **Onglet FINAL** : `ListeContacts_Lin_Out_FINAL` — résultat du dernier nettoyage de l'Agent 4 ; écrasé à chaque passe
 
-#### Structure des colonnes (identique pour tous les onglets)
+#### Structure des colonnes
 
 | Colonne | Nom | Description | Valeurs possibles |
 |---|---|---|---|
@@ -153,31 +175,22 @@ Objet: [Titre de votre email]
 | B | `Prenom` | Prénom | Première lettre majuscule, ex. `Jean` |
 | C | `Nom` | Nom de famille | Tout en majuscules, ex. `DUPONT` |
 | D | `Source` | Origine du contact | `Linkedin` ou `Outlook` |
-| E | `A_verifier` | Indicateur de vérification manuelle | `1` = à supprimer, vide = OK |
+| E | `A verifier` | Indicateur de vérification manuelle | `1` = à supprimer au prochain nettoyage, vide = OK |
 | F | `Domaine` | Domaine de l'adresse email | ex. `gmail.com` |
 | G | `Statut` | Statut libre (non rempli par les agents) | Vide par défaut |
 | H | `Extension` | Extension du domaine | ex. `.com`, `.fr` |
-| I | `Date_insertion` | Date d'insertion automatique | Format `jj/mm/aaaa` |
+| I | `Date insertion` | Date d'insertion automatique | Format `jj/mm/aaaa` |
 
 **Règle absolue** : toute ligne sans adresse email est rejetée avant insertion.
 
 **Règle de déduplication** : si un email existe déjà dans l'onglet, la ligne entrante est ignorée et la version existante est conservée.
 
-#### Onglets du Google Sheet principal
-
-| Onglet | Alimenté par | Description |
-|---|---|---|
-| `ListeContacts_Lin_connexions` | Agent 1 | Contacts extraits de `connections.csv` |
-| `ListeContacts_Lin_messages` | Agent 2 | Contacts extraits de `messages.csv` |
-| `ListeContacts_Out` | Agent 3 | Contacts extraits de la boîte Outlook |
-| `ListeContacts_Lin_Out_FINAL` | Agent 4 + Monitor Exclusion | Liste finale nettoyée, prête pour diffusion |
-
 ### Google Sheet ListeExclusion
 
 - **ID** : `1sz7xUM05y6xI-bj1Wz8jvmOzuIH7ZzCoEyECgqkZ9xc`
-- Onglet unique, colonne A, en-tête `Emails exclus`
-- Toute adresse email saisie dans cette liste est **immédiatement supprimée** de `ListeContacts_Lin_Out_FINAL` (dans les 10 minutes)
-- L'agent Nettoyeur consulte également cette liste à chaque exécution
+- **Onglet unique** : `ListeExclusion`, colonne A, en-tête `Emails exclus`
+- Toute adresse email saisie dans cette liste est **supprimée de `ListeContacts_Lin_Out`** dans les 10 minutes (par `monitor_exclusion.py`)
+- L'agent Nettoyeur consulte également cette liste à chaque exécution pour filtrer les contacts avant de créer le fichier FINAL
 
 ---
 
@@ -198,7 +211,7 @@ Chaque agent est une instance CrewAI dotée d'un rôle, d'un objectif et d'un en
 2. Détecte dynamiquement l'en-tête (le fichier LinkedIn comporte des lignes de notes avant les vraies données)
 3. Pour chaque ligne : extrait Email, First Name, Last Name ; ignore les lignes sans email
 4. Formate les contacts : email en minuscules, prénom avec majuscule initiale, nom en MAJUSCULES, Source=`Linkedin`
-5. Écrit les contacts dans l'onglet `ListeContacts_Lin_connexions` sans créer de doublons
+5. Écrit les contacts dans l'onglet `ListeContacts_Lin_Out` sans créer de doublons
 6. Archive `connections.csv` dans le dossier Archives (renommé avec la date)
 
 **Outils utilisés** :
@@ -223,7 +236,7 @@ Chaque agent est une instance CrewAI dotée d'un rôle, d'un objectif et d'un en
    - Les profils `LinkedIn Member` (membres anonymes de campagnes sponsorisées)
 5. Déduplique par URL de profil LinkedIn (clé plus fiable que le nom)
 6. Cherche les emails dans le `CONTENT` des messages : si un expéditeur a inclus son email dans le corps d'un message, il est associé à ce contact
-7. N'insère que les contacts disposant d'un email valide
+7. N'insère que les contacts disposant d'un email valide dans l'onglet `ListeContacts_Lin_Out`
 8. Archive `messages.csv` dans Archives
 
 **Particularité** : les contacts LinkedIn issus des messages n'ont souvent pas d'email dans les colonnes standard. L'agent tente de l'extraire du contenu textuel des échanges. Les contacts sans email sont silencieusement ignorés.
@@ -239,7 +252,7 @@ Chaque agent est une instance CrewAI dotée d'un rôle, d'un objectif et d'un en
 
 **Fichier** : `agents/agent_extracteur_outlook.py`
 **Crew** : `crew_outlook.py`
-**Trigger** : nouveaux emails dans la boîte Outlook de Pierre Bono (polling Microsoft Graph API toutes les 30 minutes)
+**Trigger** : nouveaux emails dans la boîte Outlook de Pierre Bono (polling Microsoft Graph API toutes les 5 minutes)
 
 **Ce que fait cet agent :**
 1. S'authentifie sur Microsoft Graph API via OAuth2 (flux client credentials)
@@ -249,7 +262,7 @@ Chaque agent est une instance CrewAI dotée d'un rôle, d'un objectif et d'un en
 5. Exclut les adresses **automatiques** (no-reply, newsletters, notifications) :
    - Préfixes exclus : `noreply`, `no-reply`, `newsletter`, `notification`, `alert`, `mailer`, `postmaster`, `bounce`, `automated`, `robot`, `system`, `admin`, `support`, `contact`, `marketing`, et leurs variantes
 6. Formate les contacts avec Source=`Outlook`
-7. Écrit dans l'onglet `ListeContacts_Out` sans doublons
+7. Écrit dans l'onglet `ListeContacts_Lin_Out` sans doublons (même onglet que les agents 1 et 2)
 
 **Filtrage temporel** : le moniteur injecte la variable d'environnement `OUTLOOK_SINCE_DT` avant chaque lancement. L'outil `lire_emails_outlook` ne récupère alors que les messages **postérieurs** à ce timestamp, évitant de retraiter tout l'historique à chaque cycle.
 
@@ -265,27 +278,37 @@ Chaque agent est une instance CrewAI dotée d'un rôle, d'un objectif et d'un en
 
 **Fichier** : `agents/agent_nettoyeur.py`
 **Crew** : `crew_nettoyeur.py`
-**Trigger** : présence de tout fichier dans le dossier `ListeContacts_Lin_Out_brute`
+**Trigger** : présence d'un fichier nommé `ListeContacts_Lin_Out` (ou `ListeContacts_Lin_Out.xlsx`) dans le dossier Drive `ListeContacts_Lin_Out_brute`
+
+Ce fichier est déposé **manuellement** par l'utilisateur. Il s'agit d'un export Excel du Google Sheet `ListeContacts_Lin_Out` (onglet brut) contenant les contacts accumulés par les agents 1, 2 et 3.
 
 **Ce que fait cet agent, en 4 étapes séquentielles :**
 
-**Étape 1 — Suppression des lignes à vérifier**
-Lit l'onglet `ListeContacts_Lin_Out_FINAL` et supprime toutes les lignes dont la colonne `A_verifier` vaut `1`. Ces lignes ont été manuellement marquées par l'utilisateur pour exclusion.
+**Étape 1 — Lecture du fichier Excel brut**
+Télécharge le fichier `ListeContacts_Lin_Out` depuis le dossier `ListeContacts_Lin_Out_brute` et charge tous les contacts en mémoire (liste JSON).
 
-**Étape 2 — Application de la liste d'exclusion**
-Lit la colonne `Emails exclus` du Google Sheet ListeExclusion et supprime de `ListeContacts_Lin_Out_FINAL` toutes les lignes dont l'email figure dans cette liste.
+**Étape 2 — Lecture de la liste d'exclusion**
+Lit le Google Sheet `ListeExclusion` (colonne `Emails exclus`) pour récupérer les adresses à exclure. Si la liste est inaccessible (403), aucune exclusion n'est appliquée et le nettoyage continue.
 
-**Étape 3 — Dédoublonnage**
-Supprime les doublons sur la colonne `Email` dans `ListeContacts_Lin_Out_FINAL`. En cas de doublon, la première occurrence (la plus ancienne) est conservée.
+**Étape 3 — Nettoyage en mémoire (3 passes)**
+Sur les données chargées en mémoire :
+1. Supprime les lignes dont la colonne `A verifier` vaut `1`
+2. Supprime les lignes dont l'email figure dans la liste d'exclusion
+3. Supprime les doublons sur la colonne `Email` (première occurrence conservée)
 
-**Étape 4 — Archivage**
-Tous les fichiers présents dans `ListeContacts_Lin_Out_brute` sont renommés avec la date du jour et déplacés dans Archives. Le dossier source est vidé.
+**Étape 4 — Écriture dans l'onglet FINAL**
+Vide l'onglet `ListeContacts_Lin_Out_FINAL` du Google Sheet principal puis y écrit les contacts nettoyés depuis la cellule A1 (en-tête inclus). L'onglet est entièrement écrasé à chaque exécution.
+
+> Note technique : les comptes de service Google n'ont pas de quota Drive et ne peuvent pas créer de fichiers binaires. L'écriture se fait donc dans un onglet Sheet existant (`ListeContacts_Lin_Out_FINAL`), et non dans un fichier Excel Drive.
+
+**Étape 5 — Archivage du fichier source**
+Renomme `ListeContacts_Lin_Out` avec la date du jour (ex. `ListeContacts_Lin_Out_19062026.xlsx`) et le déplace dans le dossier `Archives`. Le dossier `ListeContacts_Lin_Out_brute` est ainsi vidé.
 
 **Outils utilisés** :
-- `supprimer_lignes_a_verifier`
-- `supprimer_emails_exclus`
-- `dedoublonner_google_sheet`
-- `archiver_fichier_drive`
+- `lire_contacts_depuis_excel_drive` — télécharge et parse le fichier Excel brut
+- `lire_liste_exclusion` — lit le Google Sheet ListeExclusion (silencieux si 403)
+- `creer_excel_nettoye_dans_drive` — nettoie en mémoire et écrit dans l'onglet `ListeContacts_Lin_Out_FINAL`
+- `archiver_fichier_drive` — archive le fichier source dans Archives
 
 ---
 
@@ -293,12 +316,14 @@ Tous les fichiers présents dans `ListeContacts_Lin_Out_brute` sont renommés av
 
 **Fichier** : `agents/agent_diffusion_et_com.py`
 **Crew** : `crew_diffusion.py`
-**Trigger** : présence d'un fichier `ListeContacts_Lin_Out_FINAL` dans le dossier `Diffusion_et_Communication`
+**Trigger** : présence d'un fichier dont le nom commence par `ListeContacts_Lin_Out_FINAL` dans le dossier `Diffusion_et_Communication`
+
+Ce fichier (ex. `ListeContacts_Lin_Out_FINAL_19062026.xlsx`) est préparé **manuellement** par l'utilisateur : il exporte l'onglet `ListeContacts_Lin_Out_FINAL` du Google Sheet en Excel, le renomme avec la date, puis le dépose dans `Diffusion_et_Communication` quand il souhaite lancer une campagne d'envoi.
 
 **Ce que fait cet agent, en 4 étapes séquentielles :**
 
 **Étape 1 — Lecture des destinataires**
-Télécharge le fichier Excel `ListeContacts_Lin_Out_FINAL` depuis le dossier `Diffusion_et_Communication`. Lit la colonne `Email` et filtre les adresses valides (contenant `@`).
+Télécharge le fichier Excel `ListeContacts_Lin_Out_FINAL_jjmmaaaa.xlsx` depuis le dossier `Diffusion_et_Communication`. Lit la colonne `Email` et filtre les adresses valides (contenant `@`).
 
 **Étape 2 — Lecture du message**
 Lit le fichier `ContenuMessage.docx` (ID Drive fixe : `14V2EpnEaO4EW4AHKmNGM6w2An-GWrYhn`). Extrait l'objet (ligne `Objet:`) et le corps du message.
@@ -307,7 +332,7 @@ Lit le fichier `ContenuMessage.docx` (ID Drive fixe : `14V2EpnEaO4EW4AHKmNGM6w2A
 Envoie **le même message** à chaque adresse email via l'API Brevo (Sendinblue). Chaque email est envoyé individuellement (pas de champ CC ni BCC groupé). L'expéditeur est défini par les variables `SENDINBLUE_SENDER_EMAIL` et `SENDINBLUE_SENDER_NAME`.
 
 **Étape 4 — Archivage**
-Archive `ListeContacts_Lin_Out_FINAL` dans le dossier Archives avec la date dans le nom. `ContenuMessage.docx` reste en place pour être réutilisé lors de campagnes ultérieures.
+Archive `ListeContacts_Lin_Out_FINAL_jjmmaaaa.xlsx` dans le dossier Archives. `ContenuMessage.docx` reste en place pour être réutilisé lors de campagnes ultérieures.
 
 **Outils utilisés** :
 - `lire_emails_depuis_excel_drive`
@@ -331,10 +356,10 @@ Surveille quatre triggers avec des intervalles distincts :
 
 | Trigger | Condition | Intervalle |
 |---|---|---|
-| Agent 1 (Connections) | `connections.csv` présent dans `Linkedin_connections` | 15 min |
-| Agent 2 (Messages) | `messages.csv` présent dans `Linkedin_messages` | 15 min |
-| Agent 3 (Outlook) | Nouveaux emails depuis le dernier cycle | 30 min |
-| Agent 4 (Nettoyeur) | Tout fichier présent dans `ListeContacts_Lin_Out_brute` | 15 min |
+| Agent 1 (Connections) | `connections.csv` présent dans `Linkedin_connections` | **6 min** |
+| Agent 2 (Messages) | `messages.csv` présent dans `Linkedin_messages` | **8 min** |
+| Agent 3 (Outlook) | Nouveaux emails depuis le dernier cycle | **5 min** |
+| Agent 4 (Nettoyeur) | Fichier nommé `ListeContacts_Lin_Out` présent dans `ListeContacts_Lin_Out_brute` | **15 min** |
 
 **Mécanisme anti-boucle infinie** : les IDs des fichiers Drive déjà traités sont persistés dans `.monitor_main_state.json`. Si un agent échoue, le fichier est quand même marqué comme traité pour éviter une tentative infinie.
 
@@ -386,7 +411,7 @@ Surveille la colonne `Emails exclus` du Google Sheet ListeExclusion. À chaque c
 3. Si de nouveaux emails sont apparus, les supprime immédiatement de `ListeContacts_Lin_Out_FINAL` dans le Google Sheet principal
 4. Met à jour l'état même si aucune ligne n'a été supprimée (évite les tentatives infinies pour une adresse absente de la liste finale)
 
-Ce moniteur fonctionne **indépendamment** des quatre autres agents. Son seul rôle est la mise à jour en quasi-temps-réel de la liste finale dès qu'une exclusion est décidée.
+Ce moniteur fonctionne **indépendamment** des quatre autres agents. Son seul rôle est la suppression en quasi-temps-réel des emails exclus depuis le Google Sheet `ListeContacts_Lin_Out` (onglet `ListeContacts_Lin_Out`), dès qu'une nouvelle adresse est ajoutée à `ListeExclusion`.
 
 ---
 
@@ -432,28 +457,36 @@ Le système est alors **entièrement autonome**. Les agents se déclenchent seul
 
 ### Procédure : marquer des contacts pour suppression
 
-Pour exclure un contact spécifique **définitivement** de la liste finale :
-1. Ouvrir le Google Sheet ListeExclusion
+Pour exclure un contact spécifique **définitivement** :
+1. Ouvrir le Google Sheet `ListeExclusion`
 2. Ajouter l'adresse email dans la colonne `Emails exclus` (une adresse par ligne)
-3. Dans les 10 minutes, `monitor_exclusion.py` détecte la nouvelle entrée et supprime le contact de `ListeContacts_Lin_Out_FINAL`
+3. Dans les 10 minutes, `monitor_exclusion.py` détecte la nouvelle entrée et supprime le contact de l'onglet `ListeContacts_Lin_Out`
+4. L'exclusion sera également appliquée par l'Agent 4 lors du prochain nettoyage
 
 Pour marquer un contact comme "à vérifier" (suppression lors du prochain nettoyage) :
-1. Ouvrir le Google Sheet principal, onglet `ListeContacts_Lin_Out_FINAL`
-2. Mettre la valeur `1` dans la colonne `A_verifier` de la ligne concernée
-3. Lors du prochain passage de l'Agent 4, ces lignes seront supprimées
+1. Ouvrir le Google Sheet `ListeContacts_Lin_Out`, onglet `ListeContacts_Lin_Out`
+2. Mettre la valeur `1` dans la colonne `A verifier` de la ligne concernée
+3. Lors du prochain passage de l'Agent 4, ces lignes seront exclues du fichier FINAL
+
+### Procédure : lancer un nettoyage (Agent 4)
+
+1. Ouvrir le Google Sheet `ListeContacts_Lin_Out` (onglet `ListeContacts_Lin_Out`)
+2. Télécharger l'onglet au format Excel (`.xlsx`) : **Fichier → Télécharger → Microsoft Excel**
+3. Renommer le fichier téléchargé en `ListeContacts_Lin_Out.xlsx`
+4. Déposer ce fichier dans le dossier Drive **`ListeContacts_Lin_Out_brute`**
+5. Dans les 15 minutes, `monitor_main.py` détecte le fichier et déclenche l'Agent 4
+6. L'Agent 4 nettoie les données et écrit le résultat dans l'onglet **`ListeContacts_Lin_Out_FINAL`** du même Google Sheet
+7. Le fichier source est archivé automatiquement dans `Archives`
 
 ### Procédure : lancer une campagne d'envoi (Agent 5)
 
-1. Préparer le fichier `ContenuMessage.docx` selon le format :
-   ```
-   Objet: Votre objet d'email
-
-   Corps du message...
-   ```
-2. S'assurer que `ContenuMessage.docx` est bien dans le dossier Drive **`Diffusion_et_Communication`** (il peut rester d'une campagne précédente, il n'est pas archivé)
-3. Déposer dans le dossier Drive **`Diffusion_et_Communication`** le fichier Excel `ListeContacts_Lin_Out_FINAL` contenant les destinataires (colonne `Email` obligatoire)
-4. Dans les 20 minutes, `monitor_diffusion.py` détecte le fichier et déclenche l'Agent 5
-5. Les emails sont envoyés via Brevo, puis le fichier Excel est archivé automatiquement
+1. Ouvrir le Google Sheet `ListeContacts_Lin_Out`, onglet **`ListeContacts_Lin_Out_FINAL`**
+2. Télécharger cet onglet au format Excel : **Fichier → Télécharger → Microsoft Excel**
+3. Renommer le fichier avec la date : `ListeContacts_Lin_Out_FINAL_jjmmaaaa.xlsx`
+4. Déposer ce fichier dans le dossier Drive **`Diffusion_et_Communication`**
+5. S'assurer que `ContenuMessage.docx` est bien dans **`Diffusion_et_Communication`** (il reste d'une campagne précédente — il n'est jamais archivé)
+6. Dans les 20 minutes, `monitor_diffusion.py` détecte le fichier et déclenche l'Agent 5
+7. Les emails sont envoyés via Brevo, puis le fichier Excel est archivé automatiquement dans `Archives`
 
 ### Lancement manuel (sans moniteur)
 
@@ -520,6 +553,7 @@ Projet_MINER_agents_IA/
 │   └── diffusion_tools.py        # Lecture ContenuMessage, Excel, envoi Brevo
 │
 ├── requirements.txt              # Dépendances Python
+├── test_pipeline.py              # Script de diagnostic (teste chaque composant sans LLM)
 │
 ├── .monitor_main_state.json      # État persisté du moniteur principal (non versionné)
 ├── .monitor_diffusion_state.json # État persisté du moniteur diffusion (non versionné)
@@ -549,7 +583,7 @@ Le fichier `.env` doit être créé à la racine du projet en copiant `.env.exam
 ```env
 # LLM local (Ollama)
 OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=deepseek-r1:8b
+OLLAMA_MODEL=llama3.1
 OLLAMA_NUM_CTX=16384
 
 # Google Cloud (compte de service)
@@ -597,13 +631,14 @@ Cette variable n'est **jamais** à renseigner dans `.env`. Elle est gérée auto
 
 ### Modifier le modèle LLM
 
-Modifier uniquement `llm.py` :
+Modifier uniquement `llm.py` (ou la variable `OLLAMA_MODEL` dans `.env`) :
 ```python
 def get_llm() -> ChatOllama:
     return ChatOllama(
-        model="llama3:8b",      # ← changer ici
+        model="llama3.1",       # ← changer ici (ou via OLLAMA_MODEL dans .env)
         base_url="http://localhost:11434",
         num_ctx=16384,
+        temperature=0,
     )
 ```
 Tous les crews héritent automatiquement du changement.
@@ -629,9 +664,9 @@ Tous les crews héritent automatiquement du changement.
 Dans `monitor_main.py`, modifier le dictionnaire `INTERVALS` :
 ```python
 INTERVALS = {
-    "connections": 15 * 60,   # ← intervalle en secondes
-    "messages":    15 * 60,
-    "outlook":     30 * 60,
+    "connections":  6 * 60,   # ← intervalle en secondes
+    "messages":     8 * 60,
+    "outlook":      5 * 60,
     "nettoyeur":   15 * 60,
 }
 ```

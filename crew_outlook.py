@@ -9,10 +9,16 @@ load_dotenv()
 
 
 def run_outlook() -> str:
-    llm   = get_llm()
+    llm = get_llm()
     agent = create_agent_extracteur_outlook(llm)
-    task  = create_task_extraction_outlook(agent)
-    crew  = Crew(agents=[agent], tasks=[task], process=Process.sequential, verbose=False)
+    task = create_task_extraction_outlook(agent)
+    crew = Crew(
+        agents=[agent],
+        tasks=[task],
+        process=Process.sequential,
+        verbose=True,
+        use_native_tools=True,
+    )
     return str(crew.kickoff())
 
 
